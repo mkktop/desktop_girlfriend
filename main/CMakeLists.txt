@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.c" "app_lvgl.c" "bsp/bsp_wifi_web.c"
-    INCLUDE_DIRS "." "bsp"
-    EMBED_FILES "html/index.html"
+    SRCS "main.c" "modules/lvgl/app_lvgl.c" "modules/wifi/bsp_wifi_web.c"
+    INCLUDE_DIRS "." "modules/lvgl" "modules/wifi"
+    EMBED_FILES "resources/html/index.html"
 )
