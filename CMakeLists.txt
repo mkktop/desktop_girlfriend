@@ -5,3 +5,6 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 set(EXTRA_COMPONENT_DIRS "Driver/LCD" "lvgl")
 
 project(esp32)
+
+# 使用自定义分区表
+set(PARTITION_TABLE_CSV_PATH "${CMAKE_CURRENT_SOURCE_DIR}/partitions.csv")
