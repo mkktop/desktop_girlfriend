@@ -513,12 +513,91 @@ static esp_err_t disconnect_handler(httpd_req_t *req)
 }
 
 
+/**
+ * @brief 处理保存API Key的HTTP请求
+ * 接收JSON格式：{"api_key": "xxx"}
+ */
+static esp_err_t save_api_key_handler(httpd_req_t *req)
+{
+    // 定义缓冲区，用于存储接收到的HTTP请求数据
+    char buf[256];
+    // 接收HTTP请求数据，返回接收到的字节数
+    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    // 如果接收失败或没有接收到数据，返回错误
+    if (ret <= 0)
+        return ESP_FAIL;
+    // 在接收到的数据末尾添加字符串结束符
+    buf[ret] = '\0';
+
+    // 解析接收到的JSON数据
+    cJSON *root = cJSON_Parse(buf);
+    // 如果解析失败，返回错误
+    if (!root)
+        return ESP_FAIL;
+
+    // 从JSON数据中获取api_key字段的值
+    cJSON *api_key_item = cJSON_GetObjectItem(root, "api_key");
+    if (!api_key_item || !api_key_item->valuestring)
+    {
+        cJSON_Delete(root);
+        httpd_resp_send(req, "Invalid API Key", -1);
+        return ESP_FAIL;
+    }
+
+    const char *api_key = api_key_item->valuestring;
+
+    // 打开NVS命名空间
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("api_config", NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to open NVS for API key");
+        cJSON_Delete(root);
+        httpd_resp_send(req, "Failed to save API Key", -1);
+        return ESP_FAIL;
+    }
+
+    // 保存API Key
+    err = nvs_set_str(nvs_handle, "api_key", api_key);
+    if (err != ESP_OK)
+    {
+        nvs_close(nvs_handle);
+        cJSON_Delete(root);
+        httpd_resp_send(req, "Failed to save API Key", -1);
+        return ESP_FAIL;
+    }
+
+    // 提交更改
+    err = nvs_commit(nvs_handle);
+    nvs_close(nvs_handle);
+
+    cJSON_Delete(root);
+
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "API Key saved successfully");
+        httpd_resp_send(req, "API Key saved successfully", -1);
+        return ESP_OK;
+    }
+    else
+    {
+        httpd_resp_send(req, "Failed to save API Key", -1);
+        return ESP_FAIL;
+    }
+}
 
 // 添加断开连接的URI处理
 static const httpd_uri_t disconnect = {
     .uri = "/disconnect",
     .method = HTTP_POST,
     .handler = disconnect_handler,
+    .user_ctx = NULL};
+
+// 添加保存API Key的URI处理
+static const httpd_uri_t save_api_key = {
+    .uri = "/save_api_key",
+    .method = HTTP_POST,
+    .handler = save_api_key_handler,
     .user_ctx = NULL};
 
 // HTTP服务器URI处理配置
@@ -553,7 +632,7 @@ esp_err_t start_webserver(void)
 
     // 修改HTTP服务器配置
     config.uri_match_fn = httpd_uri_match_wildcard; // 使用通配符匹配URI
-    config.max_uri_handlers = 8;                    // 最大URI处理数
+    config.max_uri_handlers = 10;                   // 最大URI处理数
     config.max_resp_headers = 8;                    // 最大响应头数
     config.recv_wait_timeout = 30;                  // 接收等待超时时间
     config.send_wait_timeout = 30;                  // 发送等待超时时间
@@ -571,6 +650,7 @@ esp_err_t start_webserver(void)
     httpd_register_uri_handler(server, &scan);
     httpd_register_uri_handler(server, &status);
     httpd_register_uri_handler(server, &disconnect);
+    httpd_register_uri_handler(server, &save_api_key);
     return ESP_OK;
 }
 
@@ -590,98 +670,103 @@ esp_err_t bsp_wifi_web_init(void)
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));    
     // 注册WiFi事件处理函数
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                               &wifi_event_handler, NULL));
+                                                &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                               &wifi_event_handler, NULL));  
-    return ESP_OK;  
+                                                &wifi_event_handler, NULL));
+    return ESP_OK;
 }
+
 
 esp_err_t bsp_wifi_web_start(void)
 {
-    //
-    char sta_ssid[32];
-    char sta_password[64];
-
-    // 设置为AP+STA模式
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));   
-    // 配置AP模式参数
+    // 设置WiFi模式为AP+STA
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    // 配置AP
     wifi_config_t ap_config = {
         .ap = {
             .ssid = WIFI_AP_SSID,
             .ssid_len = strlen(WIFI_AP_SSID),
             .password = WIFI_AP_PASS,
             .channel = WIFI_AP_CHANNEL,
+            .authmode = WIFI_AUTH_WPA2_PSK,
             .max_connection = WIFI_AP_MAX_CONN,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK},
-    };     
-
-    // 设置AP配置
+        },
+    };
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
-
     // 启动WiFi
-    ESP_ERROR_CHECK(esp_wifi_start());  
-    // 等待WiFi启动
-    vTaskDelay(pdMS_TO_TICKS(500)); 
-
-    //尝试读取WiFi配置   
-    if (read_wifi_config(sta_ssid, sta_password) == ESP_OK)
-    {
-        ESP_LOGI(TAG, "WiFi配置已读取: %s, %s", sta_ssid, sta_password);
-        // 配置STA配置
-        wifi_config_t sta_config = {0}; 
-
-        // 复制SSID和密码
-        memcpy(sta_config.sta.ssid, sta_ssid, strlen(sta_ssid));
-        memcpy(sta_config.sta.password, sta_password, strlen(sta_password));
-
-        // 设置认证模式
-        sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-        sta_config.sta.pmf_cfg.capable = true;
-        sta_config.sta.pmf_cfg.required = false;
-
-        ESP_LOGI(TAG, "正在连接到WiFi: %s", sta_config.sta.ssid);
-
-        // 设置STA配置
-        if (esp_wifi_set_config(WIFI_IF_STA, &sta_config) != ESP_OK)
-        {
-            ESP_LOGE(TAG, "设置STA配置失败");
-            return ESP_FAIL;
-        }
-
-        // // 启用自动重连
-        // auto_reconnect = true;
-
-        // 连接到STA
-        if (esp_wifi_connect() != ESP_OK)
-        {
-            ESP_LOGE(TAG, "连接到STA失败");
-            return ESP_FAIL;
-        }
-    } 
+    ESP_ERROR_CHECK(esp_wifi_start());
     // 启动Web服务器
     ESP_ERROR_CHECK(start_webserver());
-
-    ESP_LOGI(TAG, "WiFi配网已启动，请连接到 %s 进行配置，密码 %s", WIFI_AP_SSID,WIFI_AP_PASS);
-    ESP_LOGW(TAG, "请在浏览器中进入:192.168.4.1");
-    return ESP_OK;     
+    ESP_LOGI(TAG, "WiFi Web server started, AP: %s", WIFI_AP_SSID);
+    return ESP_OK;
 }
 
-// 实现断开连接接口
+/**
+ * @brief 读取API Key从NVS
+ *
+ * @param api_key 存储API Key的缓冲区
+ * @param buf_size 缓冲区大小
+ * @return esp_err_t ESP_OK成功，其他失败
+ */
+esp_err_t bsp_wifi_web_read_api_key(char *api_key, size_t buf_size)
+{
+    nvs_handle_t nvs_handle;
+    esp_err_t ret;
+    size_t key_len;
+
+    // 打开nvs
+    ret = nvs_open("api_config", NVS_READONLY, &nvs_handle);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to open NVS for API key");
+        return ret;
+    }
+
+    // 先获取实际长度
+    ret = nvs_get_str(nvs_handle, "api_key", NULL, &key_len);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to get API key length");
+        nvs_close(nvs_handle);
+        return ret;
+    }
+
+    // 检查缓冲区大小
+    if (key_len > buf_size)
+    {
+        ESP_LOGE(TAG, "API key too long");
+        nvs_close(nvs_handle);
+        return ESP_ERR_NO_MEM;
+    }
+
+    // 读取API Key
+    ret = nvs_get_str(nvs_handle, "api_key", api_key, &key_len);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to read API key");
+        nvs_close(nvs_handle);
+        return ret;
+    }
+
+    // 关闭nvs
+    nvs_close(nvs_handle);
+    ESP_LOGI(TAG, "Read API key success");
+    return ESP_OK;
+}
+
 esp_err_t bsp_wifi_web_disconnect(void)
 {
     return esp_wifi_disconnect();
 }
 
-// 获取WiFi连接状态
 uint8_t bsp_wifi_web_get_status(void)
 {
-    if (wifi_state.connected == true && wifi_state.ip[0] != '\0'){
-        return 1;
+    if (wifi_state.connected)
+    {
+        return 1; // 已连接
     }
     return 0; // 未连接
 }
-
-
 
 /**
  * @brief 获取STA模式下WiFi的MAC地址
@@ -707,7 +792,8 @@ esp_err_t bsp_wifi_web_get_mac(uint8_t *mac)
  */
 esp_err_t stop_webserver(void)
 {
-    if (server != NULL) {
+    if (server != NULL)
+    {
         // 调用 httpd_stop 函数关闭 HTTP 服务器
         httpd_stop(server);
         // 将服务器句柄置为 NULL
@@ -728,7 +814,7 @@ esp_err_t stop_webserver(void)
  */
 esp_err_t bsp_wifi_web_stop_ap(void)
 {
-    // 设置WiFi模式为STA模式
+    // 将WiFi模式设置为仅STA模式
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     // 重新启动WiFi
     ESP_ERROR_CHECK(esp_wifi_start());
