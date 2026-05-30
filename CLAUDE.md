@@ -4,6 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Commands
 
+Claude Code runs in a MSys/Git Bash shell, which ESP-IDF's `idf.py` rejects (detects `MSYSTEM` env var and skips `main()`). To compile, use the provided `build.bat` which runs via CMD with the correct environment:
+
+```bash
+# Claude Code 编译（通过 build.bat 在 CMD 环境下绕过 MSys 检测）
+cmd.exe //C "D:\work\desktop_girlfriend\build.bat build" 2>&1 | tail -50
+
+# 清理后编译
+rm -rf build && cmd.exe //C "D:\work\desktop_girlfriend\build.bat build" 2>&1 | tail -50
+```
+
+For users in an ESP-IDF terminal (CMD/PowerShell), use standard commands:
+
 ```bash
 idf.py build                          # Build the project
 idf.py -p <PORT> flash                # Flash to device
@@ -13,6 +25,8 @@ idf.py menuconfig                     # Configure SDK options
 idf.py fullclean                      # Clean all build artifacts
 ```
 
+`build.bat` sets `MSYSTEM=` and adds cmake/ninja/toolchain to PATH, then calls `idf.py` via the ESP-IDF Python venv.
+
 ## Architecture Overview
 
 This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" device.
@@ -20,7 +34,7 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 ### Technology Stack
 - **Framework**: ESP-IDF v5.4.1
 - **MCU**: ESP32-S3 (dual-core)
-- **Graphics**: LVGL v9.6.0
+- **Graphics**: LVGL v9.5.0 (managed component)
 - **Display**: ST7789 (240×320, SPI @ 80MHz)
 - **RTOS**: FreeRTOS
 
@@ -28,9 +42,12 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 
 | Path | Purpose |
 |------|---------|
-| `main/main.c` | Application entry point - initializes NVS, WiFi, LVGL |
-| `main/modules/lvgl/app_lvgl.c` | Display init using esp_lcd + esp_lvgl_port (Core 1, priority 1, 6KB stack) |
-| `main/modules/wifi/bsp_wifi_web.c` | WiFi provisioning (AP+STA mode) with embedded HTTP server |
+| `main/main.c` | Application entry point - initializes NVS, event, WiFi, display, UI |
+| `main/modules/event/app_event.c` | Lightweight event callback system for inter-module communication |
+| `main/modules/display/app_display.c` | Display hardware init (esp_lcd + esp_lvgl_port, Core 1, priority 1) |
+| `main/modules/display/ui/ui_manager.c` | Page manager - handles page switching and event-driven UI updates |
+| `main/modules/display/ui/ui_home.c` | Home page UI |
+| `main/modules/wifi/app_wifi.c` | WiFi provisioning (AP+STA mode) with embedded HTTP server |
 | `main/resources/html/index.html` | WiFi provisioning web page |
 
 ### Display Stack

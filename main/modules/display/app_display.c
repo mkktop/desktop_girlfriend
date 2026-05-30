@@ -1,10 +1,11 @@
 /**
- * @file app_lvgl.c
- * @brief LVGL显示模块实现，基于esp_lcd + esp_lvgl_port
+ * @file app_display.c
+ * @brief 显示硬件初始化模块实现
  * @author mkk
  * @date 2026-05-30
  * @note 使用ESP-IDF官方esp_lcd框架驱动ST7789 LCD，
- *       通过esp_lvgl_port组件托管LVGL任务、tick和DMA传输
+ *       通过esp_lvgl_port组件托管LVGL任务、tick和DMA传输，
+ *       本文件只负责硬件初始化，不包含任何UI创建逻辑
  */
 
 #include <stdio.h>
@@ -22,9 +23,9 @@
 #include "lvgl.h"
 #include "misc/cache/instance/lv_image_cache.h"
 #include "esp_lvgl_port.h"
-#include "app_lvgl.h"
+#include "app_display.h"
 
-static const char *TAG = "app_lvgl";
+static const char *TAG = "app_display";
 
 /* LCD引脚定义 */
 #define LCD_SCK_PIN     GPIO_NUM_9
@@ -41,12 +42,13 @@ static const char *TAG = "app_lvgl";
 #define LCD_SPI_MODE    0
 #define LCD_SPI_HOST    SPI2_HOST
 
+/* LVGL显示对象 */
+static lv_display_t *s_display = NULL;
+
 /**
- * @brief 初始化LVGL显示模块
- * @note 完成SPI总线、LCD面板、LVGL端口初始化，
- *       esp_lvgl_port会自动创建LVGL任务并管理tick和DMA传输
+ * @brief 初始化显示硬件
  */
-void app_lvgl_init(void)
+void app_display_init(void)
 {
     ESP_LOGI(TAG, "Initializing display...");
 
@@ -155,26 +157,12 @@ void app_lvgl_init(void)
             .direct_mode = 0,
         },
     };
-    lv_display_t *display = lvgl_port_add_disp(&display_cfg);
-    ESP_ERROR_CHECK(display == NULL ? ESP_FAIL : ESP_OK);
-    ESP_LOGI(TAG, "Display added to LVGL port");
-
-    /* 11. 创建测试UI（需要在锁保护下操作LVGL） */
-    if (lvgl_port_lock(0)) {
-        lv_obj_t *label = lv_label_create(lv_screen_active());
-        lv_label_set_text(label, "Hello LVGL!");
-        lv_obj_center(label);
-
-        lv_obj_t *btn = lv_button_create(lv_screen_active());
-        lv_obj_set_size(btn, 120, 50);
-        lv_obj_align(btn, LV_ALIGN_CENTER, 0, 40);
-
-        lv_obj_t *btn_label = lv_label_create(btn);
-        lv_label_set_text(btn_label, "Button");
-        lv_obj_center(btn_label);
-
-        lvgl_port_unlock();
-    }
-
+    s_display = lvgl_port_add_disp(&display_cfg);
+    ESP_ERROR_CHECK(s_display == NULL ? ESP_FAIL : ESP_OK);
     ESP_LOGI(TAG, "Display initialization complete");
+}
+
+lv_display_t *app_display_get(void)
+{
+    return s_display;
 }
