@@ -72,6 +72,18 @@ void app_main(void)
         if (bits & APP_EVENT_WIFI_STA_START) {
             app_event_dispatch_to_handlers(APP_EVENT_WIFI_STA_START);
         }
+        if (bits & APP_EVENT_WIFI_SCANNING) {
+            app_event_dispatch_to_handlers(APP_EVENT_WIFI_SCANNING);
+        }
+        if (bits & APP_EVENT_WIFI_CONNECTING) {
+            app_event_dispatch_to_handlers(APP_EVENT_WIFI_CONNECTING);
+        }
+        if (bits & APP_EVENT_WIFI_CONFIG_ENTER) {
+            app_event_dispatch_to_handlers(APP_EVENT_WIFI_CONFIG_ENTER);
+        }
+        if (bits & APP_EVENT_WIFI_CONFIG_EXIT) {
+            app_event_dispatch_to_handlers(APP_EVENT_WIFI_CONFIG_EXIT);
+        }
 
         /* Schedule 延迟回调（最后处理，与小智一致） */
         if (bits & APP_EVENT_SCHEDULE_PENDING) {

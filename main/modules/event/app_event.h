@@ -28,12 +28,16 @@
  * ============================================================ */
 
 /* WiFi 事件 */
-#define APP_EVENT_WIFI_CONNECTED    (1U << 0)  /* WiFi 已连接到AP */
-#define APP_EVENT_WIFI_DISCONNECTED (1U << 1)  /* WiFi 连接断开 */
-#define APP_EVENT_WIFI_GOT_IP      (1U << 2)  /* 获取到IP地址 */
-#define APP_EVENT_WIFI_AP_START    (1U << 3)  /* AP模式启动 */
-#define APP_EVENT_WIFI_AP_STOP     (1U << 4)  /* AP模式停止 */
-#define APP_EVENT_WIFI_STA_START   (1U << 5)  /* Station模式启动 */
+#define APP_EVENT_WIFI_CONNECTED       (1U << 0)  /* WiFi 已连接到AP */
+#define APP_EVENT_WIFI_DISCONNECTED    (1U << 1)  /* WiFi 连接断开 */
+#define APP_EVENT_WIFI_GOT_IP         (1U << 2)  /* 获取到IP地址 */
+#define APP_EVENT_WIFI_AP_START       (1U << 3)  /* AP模式启动 */
+#define APP_EVENT_WIFI_AP_STOP        (1U << 4)  /* AP模式停止 */
+#define APP_EVENT_WIFI_STA_START      (1U << 5)  /* Station模式启动 */
+#define APP_EVENT_WIFI_SCANNING       (1U << 6)  /* 正在扫描WiFi */
+#define APP_EVENT_WIFI_CONNECTING     (1U << 7)  /* 正在连接WiFi */
+#define APP_EVENT_WIFI_CONFIG_ENTER   (1U << 8)  /* 进入配网模式 */
+#define APP_EVENT_WIFI_CONFIG_EXIT    (1U << 9)  /* 退出配网模式 */
 
 /* 内部：延迟回调队列就绪 */
 #define APP_EVENT_SCHEDULE_PENDING (1U << 23)

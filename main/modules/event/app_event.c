@@ -55,6 +55,10 @@ static const char *s_bit_names[] = {
     [3]  = "WIFI_AP_START",
     [4]  = "WIFI_AP_STOP",
     [5]  = "WIFI_STA_START",
+    [6]  = "WIFI_SCANNING",
+    [7]  = "WIFI_CONNECTING",
+    [8]  = "WIFI_CONFIG_ENTER",
+    [9]  = "WIFI_CONFIG_EXIT",
     [23] = "SCHEDULE_PENDING",
 };
 

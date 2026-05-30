@@ -251,6 +251,7 @@ static esp_err_t connect_handler(httpd_req_t *req)
     wifi_state.connecting = true;
     auto_reconnect = true;
     snprintf(wifi_state.message, sizeof(wifi_state.message), "正在连接到 %s...", ssid);
+    app_event_set_bits(APP_EVENT_WIFI_CONNECTING);
 
     if (esp_wifi_set_config(WIFI_IF_STA, &sta_config) != ESP_OK) {
         ESP_LOGW(TAG, "设置STA配置失败");
@@ -271,6 +272,8 @@ static esp_err_t connect_handler(httpd_req_t *req)
 
 static esp_err_t scan_handler(httpd_req_t *req)
 {
+    app_event_set_bits(APP_EVENT_WIFI_SCANNING);
+
     wifi_scan_config_t scan_config = {
         .ssid = NULL,
         .bssid = NULL,
@@ -433,6 +436,7 @@ esp_err_t app_wifi_start(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(start_webserver());
+    app_event_set_bits(APP_EVENT_WIFI_CONFIG_ENTER);
     ESP_LOGI(TAG, "WiFi started, AP: %s", wifi_ap->ssid);
     return ESP_OK;
 }
@@ -456,6 +460,7 @@ esp_err_t app_wifi_stop_ap(void)
 {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
+    app_event_set_bits(APP_EVENT_WIFI_CONFIG_EXIT);
     return ESP_OK;
 }
 
