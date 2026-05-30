@@ -38,6 +38,21 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 - **Display**: ST7789 (240×320, SPI @ 80MHz)
 - **RTOS**: FreeRTOS
 
+### Board Abstraction
+
+项目通过**板卡抽象层**支持多个硬件板卡，编译时通过 Kconfig 选择：
+
+| Path | Purpose |
+|------|---------|
+| `main/boards/board.h` | 板卡配置结构体（`board_t`）+ 单例接口（`board_get_instance()`） |
+| `main/boards/<board_name>/board.c` | 各板卡的具体引脚和参数配置 |
+| `main/Kconfig.projbuild` | 板卡选择菜单（`menuconfig` 中可见） |
+
+添加新板卡只需：
+1. 创建 `main/boards/<新板卡名>/board.c`，填充 `board_t` 结构体
+2. 在 `Kconfig.projbuild` 添加选项
+3. 在 `main/CMakeLists.txt` 添加 `elseif` 分支
+
 ### Module Structure
 
 | Path | Purpose |
@@ -60,18 +75,11 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 
 ### Hardware Pins (LCD)
 
-| Pin | GPIO |
-|-----|------|
-| DC | GPIO 7 |
-| RST | GPIO 8 |
-| SCK | GPIO 9 |
-| SDA (MOSI) | GPIO 10 |
-| PWR (Backlight) | GPIO 11 |
-| CS | GPIO 12 |
+All pin definitions are in `main/boards/desktop_girlfriend_V1/board.c` (current board).
 
 ### WiFi Provisioning
 
-The device starts in AP+STA mode with SSID "mkk_wifi". HTTP endpoints:
+AP config (SSID, password, channel) is defined in `main/boards/desktop_girlfriend_V1/board.c`. HTTP endpoints:
 - `/` - Configuration page
 - `/scan` - Scan for WiFi networks
 - `/connect` - Connect to WiFi

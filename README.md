@@ -12,6 +12,8 @@
 
 ## 引脚连接
 
+引脚定义集中在 `main/boards/desktop_girlfriend_V1/board.c`，当前板卡配置：
+
 | LCD 引脚 | GPIO |
 |----------|------|
 | DC | GPIO 7 |
@@ -28,9 +30,14 @@
 ├── partitions.csv              # 自定义分区表（NVS 24KB + Factory 3MB）
 ├── sdkconfig                   # SDK 配置
 ├── main/
-│   ├── CMakeLists.txt
+│   ├── CMakeLists.txt          # 板卡条件编译 + 组件注册
+│   ├── Kconfig.projbuild       # 板卡选择菜单
 │   ├── idf_component.yml       # 组件依赖（lvgl ~9.5.0, esp_lvgl_port ~2.7.2）
 │   ├── main.c                  # 应用入口
+│   ├── boards/                 # 板卡抽象层
+│   │   ├── board.h             # 板卡配置结构体 + 单例接口
+│   │   └── desktop_girlfriend_V1/  # 当前板卡
+│   │       └── board.c         # 引脚、LCD参数、WiFi AP配置
 │   ├── modules/
 │   │   ├── event/
 │   │   │   └── app_event.c/h   # 轻量事件回调系统（模块间通信）
@@ -49,6 +56,20 @@
     └── espressif__esp_lvgl_port/ # esp_lvgl_port v2.7.x
 ```
 
+## 板卡抽象层
+
+项目支持多板卡适配，通过编译时 Kconfig 选择：
+
+1. `main/boards/board.h` — 定义 `board_t` 配置结构体（引脚、LCD参数、WiFi AP配置）
+2. `main/boards/<板卡名>/board.c` — 各板卡填充具体参数
+3. `main/Kconfig.projbuild` — `menuconfig` 中的板卡选择菜单
+4. `main/CMakeLists.txt` — 根据选择编译对应 `board.c`
+
+**添加新板卡只需三步**：
+1. 新建 `main/boards/<新板卡名>/board.c`，填充 `board_t`
+2. 在 `Kconfig.projbuild` 添加选项
+3. 在 `CMakeLists.txt` 添加 `elseif` 分支
+
 ## 技术栈
 
 | 组件 | 版本/说明 |
@@ -62,14 +83,15 @@
 ## 显示架构
 
 ```
-app_lvgl_init()
-  ├─ spi_bus_initialize(SPI2_HOST)         ← SPI 总线
-  ├─ esp_lcd_new_panel_io_spi()            ← Panel IO（SPI）
-  ├─ esp_lcd_new_panel_st7789()            ← ST7789 面板（IDF 内置驱动）
-  ├─ esp_lcd_panel_init() + invert + 清屏  ← 面板初始化
-  ├─ lv_init() + lv_image_cache_resize()   ← LVGL 核心 + PSRAM 图像缓存
-  ├─ lvgl_port_init()                      ← LVGL 端口（自动创建任务/tick/锁）
-  └─ lvgl_port_add_disp()                  ← 添加显示设备（DMA 异步 flush）
+app_display_init()
+  ├─ board_get_instance()                    ← 获取板卡配置
+  ├─ spi_bus_initialize(spi_host)            ← SPI 总线
+  ├─ esp_lcd_new_panel_io_spi()              ← Panel IO（SPI）
+  ├─ esp_lcd_new_panel_st7789()              ← ST7789 面板（IDF 内置驱动）
+  ├─ esp_lcd_panel_init() + invert + 清屏    ← 面板初始化
+  ├─ lv_init() + lv_image_cache_resize()     ← LVGL 核心 + PSRAM 图像缓存
+  ├─ lvgl_port_init()                        ← LVGL 端口（自动创建任务/tick/锁）
+  └─ lvgl_port_add_disp()                    ← 添加显示设备（DMA 异步 flush）
 ```
 
 ### FreeRTOS 调度
@@ -91,7 +113,7 @@ app_lvgl_init()
 
 ## WiFi 配网
 
-设备启动后以 AP+STA 模式运行，SSID：`mkk_wifi`。
+设备启动后以 AP+STA 模式运行，AP 配置在板卡配置中定义。
 
 | HTTP 端点 | 方法 | 功能 |
 |-----------|------|------|
@@ -114,6 +136,7 @@ app_lvgl_init()
 idf.py build                          # 编译
 idf.py -p <PORT> flash                # 烧录
 idf.py -p <PORT> flash monitor        # 编译、烧录、监控
+idf.py menuconfig                     # 配置（含板卡选择）
 ```
 
 ## 功能特性
@@ -123,5 +146,7 @@ idf.py -p <PORT> flash monitor        # 编译、烧录、监控
 - [x] WiFi 配网（AP+STA + 网页配置）
 - [x] DMA 异步传输
 - [x] PSRAM 图像缓存优化
+- [x] 板卡抽象层（支持多板卡）
+- [x] 轻量事件系统（模块间通信）
 - [ ] 触摸输入支持
 - [ ] AI 对话功能

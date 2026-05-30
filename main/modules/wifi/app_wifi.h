@@ -12,12 +12,8 @@
 #include "esp_err.h"
 #include <stdint.h>
 
-/* WiFi配置参数 */
-#define WIFI_AP_SSID        "mkk_wifi"      /* 配网热点名称 */
-#define WIFI_AP_PASS        "123456789"     /* 配网热点密码 */
-#define WIFI_AP_CHANNEL     1               /* WiFi信道 */
-#define WIFI_CONNECT_TIMEOUT 30000          /* 连接超时时间(ms) */
-#define WIFI_AP_MAX_CONN    1               /* 最大连接数 */
+/* WiFi连接超时时间(ms) */
+#define WIFI_CONNECT_TIMEOUT 30000
 
 /**
  * @brief 初始化WiFi模块

@@ -1,0 +1,7 @@
+choice BOARD_TYPE
+    prompt "Board Type"
+    default BOARD_TYPE_DESKTOP_GIRLFRIEND_V1
+
+    config BOARD_TYPE_DESKTOP_GIRLFRIEND_V1
+        bool "desktop_girlfriend_V1"
+endchoice

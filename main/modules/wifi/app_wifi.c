@@ -9,6 +9,7 @@
 
 #include "app_wifi.h"
 #include "app_event.h"
+#include "board.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "string.h"
@@ -414,22 +415,24 @@ esp_err_t app_wifi_init(void)
 
 esp_err_t app_wifi_start(void)
 {
+    const board_t *board = board_get_instance();
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 
     wifi_config_t ap_config = {
         .ap = {
-            .ssid = WIFI_AP_SSID,
-            .ssid_len = strlen(WIFI_AP_SSID),
-            .password = WIFI_AP_PASS,
-            .channel = WIFI_AP_CHANNEL,
+            .ssid_len = strlen(board->ap_ssid),
+            .channel = board->ap_channel,
             .authmode = WIFI_AUTH_WPA2_PSK,
-            .max_connection = WIFI_AP_MAX_CONN,
+            .max_connection = board->ap_max_conn,
         },
     };
+    strlcpy((char *)ap_config.ap.ssid, board->ap_ssid, sizeof(ap_config.ap.ssid));
+    strlcpy((char *)ap_config.ap.password, board->ap_password, sizeof(ap_config.ap.password));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(start_webserver());
-    ESP_LOGI(TAG, "WiFi started, AP: %s", WIFI_AP_SSID);
+    ESP_LOGI(TAG, "WiFi started, AP: %s", board->ap_ssid);
     return ESP_OK;
 }
 
