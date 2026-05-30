@@ -416,23 +416,24 @@ esp_err_t app_wifi_init(void)
 esp_err_t app_wifi_start(void)
 {
     const board_t *board = board_get_instance();
+    const wifi_ap_cfg_t *wifi_ap = &board->wifi_ap;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 
     wifi_config_t ap_config = {
         .ap = {
-            .ssid_len = strlen(board->ap_ssid),
-            .channel = board->ap_channel,
+            .ssid_len = strlen(wifi_ap->ssid),
+            .channel = wifi_ap->channel,
             .authmode = WIFI_AUTH_WPA2_PSK,
-            .max_connection = board->ap_max_conn,
+            .max_connection = wifi_ap->max_conn,
         },
     };
-    strlcpy((char *)ap_config.ap.ssid, board->ap_ssid, sizeof(ap_config.ap.ssid));
-    strlcpy((char *)ap_config.ap.password, board->ap_password, sizeof(ap_config.ap.password));
+    strlcpy((char *)ap_config.ap.ssid, wifi_ap->ssid, sizeof(ap_config.ap.ssid));
+    strlcpy((char *)ap_config.ap.password, wifi_ap->password, sizeof(ap_config.ap.password));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(start_webserver());
-    ESP_LOGI(TAG, "WiFi started, AP: %s", board->ap_ssid);
+    ESP_LOGI(TAG, "WiFi started, AP: %s", wifi_ap->ssid);
     return ESP_OK;
 }
 

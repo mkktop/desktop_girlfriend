@@ -4,7 +4,8 @@
  * @author mkk
  * @date 2026-05-30
  * @note 定义板卡配置结构体和单例接口，
- *       每个板卡在 boards/<name>/board.c 中提供具体配置
+ *       每个板卡在 boards/<name>/board.c 中提供具体配置，
+ *       外设配置通过嵌套结构体分组，便于未来扩展
  */
 
 #ifndef __BOARD_H__
@@ -14,15 +15,12 @@
 #include <stdbool.h>
 
 /**
- * @brief 板卡配置结构体
- * @note 包含该板卡的所有硬件引脚和参数定义，
- *       各板卡通过填充此结构体来适配不同硬件
+ * @brief LCD 显示配置
+ * @note SPI 接口 LCD 的引脚和参数，
+ *       适用于 ST7789、ILI9341、GC9A01 等 SPI 屏
  */
 typedef struct {
-    /* 板卡信息 */
-    const char *name;               /* 板卡名称 */
-
-    /* LCD 引脚 */
+    /* SPI 引脚 */
     int pin_sck;                     /* SPI 时钟引脚 */
     int pin_mosi;                    /* SPI MOSI 引脚 */
     int pin_cs;                      /* SPI 片选引脚 */
@@ -30,19 +28,44 @@ typedef struct {
     int pin_rst;                     /* 复位引脚 */
     int pin_backlight;               /* 背光控制引脚 */
 
-    /* LCD 参数 */
+    /* 显示参数 */
     int width;                       /* 屏幕宽度（像素） */
     int height;                      /* 屏幕高度（像素） */
     int spi_host;                    /* SPI 主机编号（SPI2_HOST / SPI3_HOST） */
     int spi_mode;                    /* SPI 模式（0-3） */
-    int pixel_clock_hz;              /* 像素时钟频率（Hz） */
+    uint32_t pixel_clock_hz;         /* 像素时钟频率（Hz） */
     bool invert_color;               /* 是否反色显示 */
+} lcd_cfg_t;
 
-    /* WiFi 配网参数 */
-    const char *ap_ssid;             /* 配网热点名称 */
-    const char *ap_password;         /* 配网热点密码 */
-    int ap_channel;                  /* WiFi 信道 */
-    int ap_max_conn;                 /* 最大连接数 */
+/**
+ * @brief WiFi 配网 AP 参数
+ */
+typedef struct {
+    const char *ssid;                /* 配网热点名称 */
+    const char *password;            /* 配网热点密码 */
+    int channel;                     /* WiFi 信道 */
+    int max_conn;                    /* 最大连接数 */
+} wifi_ap_cfg_t;
+
+/**
+ * @brief 板卡配置结构体
+ * @note 各板卡通过填充此结构体来适配不同硬件，
+ *       外设配置通过嵌套结构体分组，扩展时只需添加新的 cfg_t
+ */
+typedef struct {
+    /* 板卡信息 */
+    const char *name;                /* 板卡名称 */
+
+    /* 外设配置 */
+    lcd_cfg_t lcd;                   /* LCD 显示配置 */
+    wifi_ap_cfg_t wifi_ap;           /* WiFi 配网参数 */
+
+    /* 未来扩展预留：
+     * audio_i2s_cfg_t audio;        // 音频 I2S 配置
+     * touch_cfg_t touch;            // 触摸屏配置
+     * button_cfg_t button;          // 按钮配置
+     * power_cfg_t power;            // 电源管理配置
+     */
 } board_t;
 
 /**

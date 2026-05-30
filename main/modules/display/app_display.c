@@ -37,38 +37,39 @@ static lv_display_t *s_display = NULL;
 void app_display_init(void)
 {
     const board_t *board = board_get_instance();
+    const lcd_cfg_t *lcd = &board->lcd;
     ESP_LOGI(TAG, "Initializing display for board: %s...", board->name);
 
     /* 1. 初始化SPI总线 */
     spi_bus_config_t buscfg = {
-        .mosi_io_num = board->pin_mosi,
+        .mosi_io_num = lcd->pin_mosi,
         .miso_io_num = GPIO_NUM_NC,
-        .sclk_io_num = board->pin_sck,
+        .sclk_io_num = lcd->pin_sck,
         .quadwp_io_num = GPIO_NUM_NC,
         .quadhd_io_num = GPIO_NUM_NC,
-        .max_transfer_sz = board->width * board->height * sizeof(uint16_t),
+        .max_transfer_sz = lcd->width * lcd->height * sizeof(uint16_t),
     };
-    ESP_ERROR_CHECK(spi_bus_initialize(board->spi_host, &buscfg, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(spi_bus_initialize(lcd->spi_host, &buscfg, SPI_DMA_CH_AUTO));
     ESP_LOGI(TAG, "SPI bus initialized");
 
     /* 2. 创建LCD面板SPI IO */
     esp_lcd_panel_io_handle_t panel_io = NULL;
     esp_lcd_panel_io_spi_config_t io_config = {
-        .cs_gpio_num = board->pin_cs,
-        .dc_gpio_num = board->pin_dc,
-        .spi_mode = board->spi_mode,
-        .pclk_hz = board->pixel_clock_hz,
+        .cs_gpio_num = lcd->pin_cs,
+        .dc_gpio_num = lcd->pin_dc,
+        .spi_mode = lcd->spi_mode,
+        .pclk_hz = lcd->pixel_clock_hz,
         .trans_queue_depth = 10,
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(board->spi_host, &io_config, &panel_io));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(lcd->spi_host, &io_config, &panel_io));
     ESP_LOGI(TAG, "Panel IO created");
 
     /* 3. 创建ST7789 LCD面板（ESP-IDF内置驱动） */
     esp_lcd_panel_handle_t panel = NULL;
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = board->pin_rst,
+        .reset_gpio_num = lcd->pin_rst,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
@@ -78,23 +79,23 @@ void app_display_init(void)
     /* 4. 初始化LCD面板 */
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
-    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel, board->invert_color));
+    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel, lcd->invert_color));
     ESP_LOGI(TAG, "LCD panel initialized");
 
     /* 5. 清屏为白色（避免上电瞬间花屏） */
-    uint16_t *line_buf = heap_caps_malloc(board->width * sizeof(uint16_t), MALLOC_CAP_DMA);
+    uint16_t *line_buf = heap_caps_malloc(lcd->width * sizeof(uint16_t), MALLOC_CAP_DMA);
     if (line_buf) {
-        memset(line_buf, 0xFF, board->width * sizeof(uint16_t));
-        for (int y = 0; y < board->height; y++) {
-            esp_lcd_panel_draw_bitmap(panel, 0, y, board->width, y + 1, line_buf);
+        memset(line_buf, 0xFF, lcd->width * sizeof(uint16_t));
+        for (int y = 0; y < lcd->height; y++) {
+            esp_lcd_panel_draw_bitmap(panel, 0, y, lcd->width, y + 1, line_buf);
         }
         free(line_buf);
     }
 
     /* 6. 开启显示和背光 */
     esp_lcd_panel_disp_on_off(panel, true);
-    gpio_set_direction(board->pin_backlight, GPIO_MODE_OUTPUT);
-    gpio_set_level(board->pin_backlight, 1);
+    gpio_set_direction(lcd->pin_backlight, GPIO_MODE_OUTPUT);
+    gpio_set_level(lcd->pin_backlight, 1);
 
     /* 7. 初始化LVGL核心库 */
     lv_init();
@@ -123,11 +124,11 @@ void app_display_init(void)
         .io_handle = panel_io,
         .panel_handle = panel,
         .control_handle = NULL,
-        .buffer_size = board->width * 20,
+        .buffer_size = lcd->width * 20,
         .double_buffer = false,
         .trans_size = 0,
-        .hres = board->width,
-        .vres = board->height,
+        .hres = lcd->width,
+        .vres = lcd->height,
         .monochrome = false,
         .rotation = {
             .swap_xy = false,

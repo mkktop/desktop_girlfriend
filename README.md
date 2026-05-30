@@ -35,9 +35,10 @@
 │   ├── idf_component.yml       # 组件依赖（lvgl ~9.5.0, esp_lvgl_port ~2.7.2）
 │   ├── main.c                  # 应用入口
 │   ├── boards/                 # 板卡抽象层
-│   │   ├── board.h             # 板卡配置结构体 + 单例接口
+│   │   ├── board.h             # 板卡配置结构体（嵌套分组）+ 单例接口
+│   │   ├── common/             # 板卡共享驱动（背光、按钮等）
 │   │   └── desktop_girlfriend_V1/  # 当前板卡
-│   │       └── board.c         # 引脚、LCD参数、WiFi AP配置
+│   │       └── board.c         # LCD、WiFi AP 等外设配置
 │   ├── modules/
 │   │   ├── event/
 │   │   │   └── app_event.c/h   # 轻量事件回调系统（模块间通信）
@@ -60,10 +61,14 @@
 
 项目支持多板卡适配，通过编译时 Kconfig 选择：
 
-1. `main/boards/board.h` — 定义 `board_t` 配置结构体（引脚、LCD参数、WiFi AP配置）
+1. `main/boards/board.h` — 定义 `board_t` 配置结构体，通过嵌套结构体分组：
+   - `lcd_cfg_t lcd` — LCD 引脚、SPI 参数、显示参数
+   - `wifi_ap_cfg_t wifi_ap` — WiFi 配网热点参数
+   - 未来可扩展 `audio_cfg_t`、`touch_cfg_t`、`button_cfg_t` 等
 2. `main/boards/<板卡名>/board.c` — 各板卡填充具体参数
-3. `main/Kconfig.projbuild` — `menuconfig` 中的板卡选择菜单
-4. `main/CMakeLists.txt` — 根据选择编译对应 `board.c`
+3. `main/boards/common/` — 板卡共享驱动（PWM 背光、按钮、音频等）
+4. `main/Kconfig.projbuild` — `menuconfig` 中的板卡选择菜单
+5. `main/CMakeLists.txt` — 根据选择编译对应 `board.c`
 
 **添加新板卡只需三步**：
 1. 新建 `main/boards/<新板卡名>/board.c`，填充 `board_t`
@@ -85,7 +90,7 @@
 ```
 app_display_init()
   ├─ board_get_instance()                    ← 获取板卡配置
-  ├─ spi_bus_initialize(spi_host)            ← SPI 总线
+  ├─ spi_bus_initialize(lcd.spi_host)        ← SPI 总线
   ├─ esp_lcd_new_panel_io_spi()              ← Panel IO（SPI）
   ├─ esp_lcd_new_panel_st7789()              ← ST7789 面板（IDF 内置驱动）
   ├─ esp_lcd_panel_init() + invert + 清屏    ← 面板初始化

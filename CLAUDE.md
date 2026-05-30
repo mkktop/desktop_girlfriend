@@ -46,7 +46,10 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 |------|---------|
 | `main/boards/board.h` | 板卡配置结构体（`board_t`）+ 单例接口（`board_get_instance()`） |
 | `main/boards/<board_name>/board.c` | 各板卡的具体引脚和参数配置 |
+| `main/boards/common/` | 板卡共享驱动（背光、按钮等） |
 | `main/Kconfig.projbuild` | 板卡选择菜单（`menuconfig` 中可见） |
+
+`board_t` 通过嵌套结构体分组外设配置：`lcd_cfg_t lcd`、`wifi_ap_cfg_t wifi_ap`，扩展时只需添加新的 `xxx_cfg_t`。
 
 添加新板卡只需：
 1. 创建 `main/boards/<新板卡名>/board.c`，填充 `board_t` 结构体
