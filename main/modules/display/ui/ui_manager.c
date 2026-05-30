@@ -4,12 +4,13 @@
  * @author mkk
  * @date 2026-05-30
  * @note 管理页面切换和事件响应，
- *       订阅app_event实现WiFi状态等UI更新
+ *       注册为事件观察者，按事件位掩码过滤 WiFi 状态更新
  */
 
 #include "ui_manager.h"
 #include "ui_home.h"
 #include "app_event.h"
+#include "app_wifi.h"
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
 
@@ -22,36 +23,36 @@ static lv_obj_t *s_active_screen = NULL;
 static lv_obj_t *s_status_label = NULL;
 
 /**
- * @brief 应用事件回调，更新UI状态
- * @param event 事件类型
- * @param data 事件数据
+ * @brief 事件观察者回调，更新UI状态
+ * @param event_bits 触发的事件位
+ * @param user_ctx   未使用
  */
-static void ui_event_handler(app_event_t event, void *data)
+static void ui_event_handler(EventBits_t event_bits, void *user_ctx)
 {
+    (void)user_ctx;
+
     if (!lvgl_port_lock(0)) {
         return;
     }
 
-    switch (event) {
-    case APP_EVENT_WIFI_CONNECTED:
+    if (event_bits & APP_EVENT_WIFI_CONNECTED) {
         if (s_status_label) {
-            lv_label_set_text(s_status_label, "WiFi: 连接中...");
+            lv_label_set_text(s_status_label, "WiFi: \xe8\xbf\x9e\xe6\x8e\xa5\xe4\xb8\xad..."); /* 连接中... */
         }
-        break;
-    case APP_EVENT_WIFI_GOT_IP:
-        if (s_status_label && data) {
+    }
+
+    if (event_bits & APP_EVENT_WIFI_GOT_IP) {
+        if (s_status_label) {
             char text[64];
-            snprintf(text, sizeof(text), "WiFi: IP %s", (const char *)data);
+            snprintf(text, sizeof(text), "WiFi: IP %s", app_wifi_get_ip());
             lv_label_set_text(s_status_label, text);
         }
-        break;
-    case APP_EVENT_WIFI_DISCONNECTED:
+    }
+
+    if (event_bits & APP_EVENT_WIFI_DISCONNECTED) {
         if (s_status_label) {
-            lv_label_set_text(s_status_label, "WiFi: 未连接");
+            lv_label_set_text(s_status_label, "WiFi: \xe6\x9c\xaa\xe8\xbf\x9e\xe6\x8e\xa5"); /* 未连接 */
         }
-        break;
-    default:
-        break;
     }
 
     lvgl_port_unlock();
@@ -61,14 +62,16 @@ void ui_manager_init(void)
 {
     ESP_LOGI(TAG, "Initializing UI manager...");
 
-    /* 注册事件回调 */
-    app_event_register(ui_event_handler);
+    /* 注册为事件观察者，只关心 WiFi 相关事件 */
+    const EventBits_t wifi_bits =
+        APP_EVENT_WIFI_CONNECTED | APP_EVENT_WIFI_DISCONNECTED | APP_EVENT_WIFI_GOT_IP;
+    app_event_register_handler(ui_event_handler, wifi_bits, NULL);
 
     /* 在锁保护下创建UI */
     if (lvgl_port_lock(0)) {
         /* 创建状态栏标签 */
         s_status_label = lv_label_create(lv_screen_active());
-        lv_label_set_text(s_status_label, "WiFi: 等待连接...");
+        lv_label_set_text(s_status_label, "WiFi: \xe7\xad\x89\xe5\xbe\x85\xe8\xbf\x9e\xe6\x8e\xa5..."); /* 等待连接... */
         lv_obj_align(s_status_label, LV_ALIGN_TOP_LEFT, 5, 5);
 
         /* 创建首页 */

@@ -60,8 +60,8 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 
 | Path | Purpose |
 |------|---------|
-| `main/main.c` | Application entry point - initializes NVS, event, WiFi, display, UI |
-| `main/modules/event/app_event.c` | Lightweight event callback system for inter-module communication |
+| `main/main.c` | Application entry point - initializes modules, runs EventGroup-driven main loop |
+| `main/modules/event/app_event.c` | Event system: FreeRTOS EventGroup + observer pattern + Schedule (deferred callbacks) |
 | `main/modules/display/app_display.c` | Display hardware init (esp_lcd + esp_lvgl_port, Core 1, priority 1) |
 | `main/modules/display/ui/ui_manager.c` | Page manager - handles page switching and event-driven UI updates |
 | `main/modules/display/ui/ui_home.c` | Home page UI |

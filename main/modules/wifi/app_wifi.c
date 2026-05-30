@@ -57,13 +57,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
         case WIFI_EVENT_AP_START:
-            app_event_send(APP_EVENT_AP_START, NULL);
+            app_event_set_bits(APP_EVENT_WIFI_AP_START);
             break;
         case WIFI_EVENT_AP_STOP:
-            app_event_send(APP_EVENT_AP_STOP, NULL);
+            app_event_set_bits(APP_EVENT_WIFI_AP_STOP);
             break;
         case WIFI_EVENT_STA_START:
-            app_event_send(APP_EVENT_STA_START, NULL);
+            app_event_set_bits(APP_EVENT_WIFI_STA_START);
             break;
         case WIFI_EVENT_STA_CONNECTED: {
             wifi_event_sta_connected_t *event = (wifi_event_sta_connected_t *)event_data;
@@ -74,7 +74,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             snprintf(wifi_state.message, sizeof(wifi_state.message),
                      "已连接到WiFi: %s", wifi_state.ssid);
             ESP_LOGI(TAG, "已连接到WiFi: %s", wifi_state.ssid);
-            app_event_send(APP_EVENT_WIFI_CONNECTED, wifi_state.ssid);
+            app_event_set_bits(APP_EVENT_WIFI_CONNECTED);
             break;
         }
         case WIFI_EVENT_STA_DISCONNECTED: {
@@ -109,7 +109,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                      "WiFi断开: %s", reason);
             ESP_LOGW(TAG, "WiFi断开，原因: %s (code: %d)", reason, event->reason);
 
-            app_event_send(APP_EVENT_WIFI_DISCONNECTED, NULL);
+            app_event_set_bits(APP_EVENT_WIFI_DISCONNECTED);
 
             if (auto_reconnect) {
                 ESP_LOGI(TAG, "尝试重新连接...");
@@ -128,7 +128,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         snprintf(temp, sizeof(temp), "WiFi: %s", wifi_state.ssid);
         snprintf(wifi_state.message, sizeof(wifi_state.message),
                  "%s\nIP: %s", temp, wifi_state.ip);
-        app_event_send(APP_EVENT_WIFI_GOT_IP, wifi_state.ip);
+        app_event_set_bits(APP_EVENT_WIFI_GOT_IP);
     }
 }
 
@@ -457,4 +457,14 @@ esp_err_t app_wifi_stop_ap(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
     return ESP_OK;
+}
+
+const char *app_wifi_get_ip(void)
+{
+    return wifi_state.ip[0] ? wifi_state.ip : "0.0.0.0";
+}
+
+const char *app_wifi_get_ssid(void)
+{
+    return wifi_state.ssid[0] ? wifi_state.ssid : "";
 }

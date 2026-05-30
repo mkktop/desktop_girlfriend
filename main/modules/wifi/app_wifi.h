@@ -42,6 +42,18 @@ esp_err_t app_wifi_disconnect(void);
 uint8_t app_wifi_get_status(void);
 
 /**
+ * @brief 获取当前连接的IP地址
+ * @return IP地址字符串，未连接时返回 "0.0.0.0"
+ */
+const char *app_wifi_get_ip(void);
+
+/**
+ * @brief 获取当前连接的WiFi名称
+ * @return SSID字符串，未连接时返回空字符串
+ */
+const char *app_wifi_get_ssid(void);
+
+/**
  * @brief 获取STA模式的MAC地址
  * @param mac 存储MAC地址的缓冲区（至少6字节）
  * @return ESP_OK成功，其他值失败
