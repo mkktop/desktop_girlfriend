@@ -3,7 +3,6 @@
 #include "freertos/task.h"
 #include "modules/lvgl/app_lvgl.h"
 #include "modules/wifi/bsp_wifi_web.h"
-#include "modules/api/app_api.h"
 #include "nvs_flash.h"
 
 void app_main(void)
@@ -20,9 +19,6 @@ void app_main(void)
     /* 初始化 WiFi Web 服务器 */
     bsp_wifi_web_init();
     bsp_wifi_web_start();
-    
-    /* 初始化 API 模块 */
-    app_api_init();
     
     /* 初始化 LVGL */
     app_lvgl_init();

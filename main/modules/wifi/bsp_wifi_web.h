@@ -29,5 +29,4 @@ uint8_t bsp_wifi_web_get_status(void);
 esp_err_t bsp_wifi_web_get_mac(uint8_t *mac);
 esp_err_t stop_webserver(void);
 esp_err_t bsp_wifi_web_stop_ap(void);
-esp_err_t bsp_wifi_web_read_api_key(char *api_key, size_t buf_size);
 #endif /* __BSP_WIFI_WEB_H__ */

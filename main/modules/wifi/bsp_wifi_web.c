@@ -513,91 +513,11 @@ static esp_err_t disconnect_handler(httpd_req_t *req)
 }
 
 
-/**
- * @brief 处理保存API Key的HTTP请求
- * 接收JSON格式：{"api_key": "xxx"}
- */
-static esp_err_t save_api_key_handler(httpd_req_t *req)
-{
-    // 定义缓冲区，用于存储接收到的HTTP请求数据
-    char buf[256];
-    // 接收HTTP请求数据，返回接收到的字节数
-    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
-    // 如果接收失败或没有接收到数据，返回错误
-    if (ret <= 0)
-        return ESP_FAIL;
-    // 在接收到的数据末尾添加字符串结束符
-    buf[ret] = '\0';
-
-    // 解析接收到的JSON数据
-    cJSON *root = cJSON_Parse(buf);
-    // 如果解析失败，返回错误
-    if (!root)
-        return ESP_FAIL;
-
-    // 从JSON数据中获取api_key字段的值
-    cJSON *api_key_item = cJSON_GetObjectItem(root, "api_key");
-    if (!api_key_item || !api_key_item->valuestring)
-    {
-        cJSON_Delete(root);
-        httpd_resp_send(req, "Invalid API Key", -1);
-        return ESP_FAIL;
-    }
-
-    const char *api_key = api_key_item->valuestring;
-
-    // 打开NVS命名空间
-    nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open("api_config", NVS_READWRITE, &nvs_handle);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to open NVS for API key");
-        cJSON_Delete(root);
-        httpd_resp_send(req, "Failed to save API Key", -1);
-        return ESP_FAIL;
-    }
-
-    // 保存API Key
-    err = nvs_set_str(nvs_handle, "api_key", api_key);
-    if (err != ESP_OK)
-    {
-        nvs_close(nvs_handle);
-        cJSON_Delete(root);
-        httpd_resp_send(req, "Failed to save API Key", -1);
-        return ESP_FAIL;
-    }
-
-    // 提交更改
-    err = nvs_commit(nvs_handle);
-    nvs_close(nvs_handle);
-
-    cJSON_Delete(root);
-
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "API Key saved successfully");
-        httpd_resp_send(req, "API Key saved successfully", -1);
-        return ESP_OK;
-    }
-    else
-    {
-        httpd_resp_send(req, "Failed to save API Key", -1);
-        return ESP_FAIL;
-    }
-}
-
 // 添加断开连接的URI处理
 static const httpd_uri_t disconnect = {
     .uri = "/disconnect",
     .method = HTTP_POST,
     .handler = disconnect_handler,
-    .user_ctx = NULL};
-
-// 添加保存API Key的URI处理
-static const httpd_uri_t save_api_key = {
-    .uri = "/save_api_key",
-    .method = HTTP_POST,
-    .handler = save_api_key_handler,
     .user_ctx = NULL};
 
 // HTTP服务器URI处理配置
@@ -650,7 +570,6 @@ esp_err_t start_webserver(void)
     httpd_register_uri_handler(server, &scan);
     httpd_register_uri_handler(server, &status);
     httpd_register_uri_handler(server, &disconnect);
-    httpd_register_uri_handler(server, &save_api_key);
     return ESP_OK;
 }
 
@@ -698,59 +617,6 @@ esp_err_t bsp_wifi_web_start(void)
     // 启动Web服务器
     ESP_ERROR_CHECK(start_webserver());
     ESP_LOGI(TAG, "WiFi Web server started, AP: %s", WIFI_AP_SSID);
-    return ESP_OK;
-}
-
-/**
- * @brief 读取API Key从NVS
- *
- * @param api_key 存储API Key的缓冲区
- * @param buf_size 缓冲区大小
- * @return esp_err_t ESP_OK成功，其他失败
- */
-esp_err_t bsp_wifi_web_read_api_key(char *api_key, size_t buf_size)
-{
-    nvs_handle_t nvs_handle;
-    esp_err_t ret;
-    size_t key_len;
-
-    // 打开nvs
-    ret = nvs_open("api_config", NVS_READONLY, &nvs_handle);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to open NVS for API key");
-        return ret;
-    }
-
-    // 先获取实际长度
-    ret = nvs_get_str(nvs_handle, "api_key", NULL, &key_len);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGW(TAG, "Failed to get API key length");
-        nvs_close(nvs_handle);
-        return ret;
-    }
-
-    // 检查缓冲区大小
-    if (key_len > buf_size)
-    {
-        ESP_LOGE(TAG, "API key too long");
-        nvs_close(nvs_handle);
-        return ESP_ERR_NO_MEM;
-    }
-
-    // 读取API Key
-    ret = nvs_get_str(nvs_handle, "api_key", api_key, &key_len);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGW(TAG, "Failed to read API key");
-        nvs_close(nvs_handle);
-        return ret;
-    }
-
-    // 关闭nvs
-    nvs_close(nvs_handle);
-    ESP_LOGI(TAG, "Read API key success");
     return ESP_OK;
 }
 

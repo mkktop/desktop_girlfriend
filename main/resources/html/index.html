@@ -124,24 +124,6 @@
         .disconnect-btn:hover {
             background-color: #c82333;
         }
-        .api-section {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #fff3cd;
-            border-radius: 4px;
-        }
-        .api-section h2 {
-            margin-top: 0;
-            color: #856404;
-            border-color: #ffc107;
-        }
-        .save-btn {
-            background-color: #ffc107;
-            color: #333;
-        }
-        .save-btn:hover {
-            background-color: #e0a800;
-        }
     </style>
 </head>
 <body>
@@ -167,16 +149,6 @@
             <button type="submit">连接</button>
             <button type="button" id="cancelBtn" style="margin-top: 10px;">取消</button>
         </form>
-        <div class="api-section">
-            <h2>API Key设置</h2>
-            <form id="apiForm">
-                <div class="form-group">
-                    <label for="apiKey">API Key:</label>
-                    <input type="text" id="apiKey" name="apiKey" placeholder="输入bigmodel.cn的API Key">
-                </div>
-                <button type="submit" class="save-btn">保存API Key</button>
-            </form>
-        </div>
         <div id="status"></div>
     </div>
 
@@ -192,8 +164,6 @@
         const connectedSSID = document.getElementById('connectedSSID');
         const connectedIP = document.getElementById('connectedIP');
         const disconnectBtn = document.getElementById('disconnectBtn');
-        const apiForm = document.getElementById('apiForm');
-        const apiKeyInput = document.getElementById('apiKey');
 
         // 刷新WiFi列表
         function refreshWifiList() {
@@ -359,37 +329,6 @@
                     status.className = 'error';
                     status.textContent = '断开连接失败: ' + error;
                 });
-        };
-
-        // 保存API Key
-        apiForm.onsubmit = function(e) {
-            e.preventDefault();
-            const apiKey = apiKeyInput.value.trim();
-            if (!apiKey) {
-                status.className = 'error';
-                status.textContent = 'API Key不能为空';
-                return;
-            }
-
-            status.className = '';
-            status.textContent = '正在保存...';
-
-            fetch('/save_api_key', {
-                method: 'POST',
-                body: JSON.stringify({ api_key: apiKey })
-            })
-            .then(response => response.text())
-            .then(text => {
-                status.className = 'success';
-                status.textContent = text;
-                setTimeout(() => {
-                    status.textContent = '';
-                }, 3000);
-            })
-            .catch(error => {
-                status.className = 'error';
-                status.textContent = '保存失败: ' + error;
-            });
         };
     </script>
 </body>

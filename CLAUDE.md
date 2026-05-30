@@ -28,10 +28,9 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 
 | Path | Purpose |
 |------|---------|
-| `main/main.c` | Application entry point - initializes NVS, WiFi, API, LVGL |
+| `main/main.c` | Application entry point - initializes NVS, WiFi, LVGL |
 | `main/modules/lvgl/app_lvgl.c` | LVGL task (Core 0, priority 5, 8KB stack) |
 | `main/modules/wifi/bsp_wifi_web.c` | WiFi provisioning (AP+STA mode) with embedded HTTP server |
-| `main/modules/api/app_api.c` | HTTP client for external API calls |
 | `Driver/LCD/st7789.c` | ST7789 LCD driver (SPI) |
 | `lvgl/lv_port_disp.c` | LVGL display port with dual partial buffers (80 rows each) |
 | `main/resources/html/index.html` | WiFi provisioning web page |
@@ -55,7 +54,6 @@ The device starts in AP+STA mode with SSID "mkk_wifi". HTTP endpoints:
 - `/connect` - Connect to WiFi
 - `/disconnect` - Disconnect WiFi
 - `/status` - Get connection status
-- `/save_api_key` - Save API key to NVS
 
 ## Code Conventions
 

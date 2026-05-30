@@ -21,5 +21,5 @@
     "ledc.h": "c"
   },
   "idf.flashType": "UART",
-  "idf.currentSetup": "c:\\mkk\\work\\esp\\v5.4.1\\esp-idf"
+  "idf.currentSetup": "C:\\esp\\v5.4.4\\esp-idf"
 }
