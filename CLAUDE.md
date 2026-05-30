@@ -29,11 +29,17 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 | Path | Purpose |
 |------|---------|
 | `main/main.c` | Application entry point - initializes NVS, WiFi, LVGL |
-| `main/modules/lvgl/app_lvgl.c` | LVGL task (Core 0, priority 5, 8KB stack) |
+| `main/modules/lvgl/app_lvgl.c` | Display init using esp_lcd + esp_lvgl_port (Core 1, priority 1, 6KB stack) |
 | `main/modules/wifi/bsp_wifi_web.c` | WiFi provisioning (AP+STA mode) with embedded HTTP server |
-| `Driver/LCD/st7789.c` | ST7789 LCD driver (SPI) |
-| `lvgl/lv_port_disp.c` | LVGL display port with dual partial buffers (80 rows each) |
 | `main/resources/html/index.html` | WiFi provisioning web page |
+
+### Display Stack
+
+- **LCD Driver**: ESP-IDF built-in `esp_lcd_new_panel_st7789()` via `esp_lcd` framework
+- **LVGL Adapter**: `esp_lvgl_port` component (managed component v2.7.x)
+- **SPI**: `SPI2_HOST` @ 80MHz, DMA auto, polling mode
+- **Buffer**: Partial render, `width * 20` pixels, single buffer, DMA capable
+- **Thread Safety**: `lvgl_port_lock()` / `lvgl_port_unlock()` for cross-task LVGL access
 
 ### Hardware Pins (LCD)
 
