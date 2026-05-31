@@ -20,7 +20,7 @@
 #include "esp_http_server.h"
 #include "cJSON.h"
 
-static const char *TAG = "app_wifi";
+#define TAG "app_wifi"
 
 /* 重连和超时常量 */
 #define MAX_RECONNECT_COUNT      5       /* 首次连接最大立即重试次数 */

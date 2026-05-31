@@ -17,7 +17,7 @@
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
 
-static const char *TAG = "ui_manager";
+#define TAG "ui_manager"
 
 /* 页面状态 */
 typedef enum {

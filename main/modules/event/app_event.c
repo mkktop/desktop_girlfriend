@@ -15,7 +15,7 @@
 #include "freertos/semphr.h"
 #include "esp_log.h"
 
-static const char *TAG = "app_event";
+#define TAG "app_event"
 
 /* 配置常量 */
 #define APP_MAX_HANDLERS        16
