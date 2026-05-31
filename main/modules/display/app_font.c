@@ -21,7 +21,7 @@
 LV_FONT_DECLARE(font_puhui_basic_16_4)
 LV_FONT_DECLARE(font_awesome_16_4)
 
-static const char *TAG = "app_font";
+#define TAG "app_font"
 
 /* 资源分区句柄 */
 static mmap_assets_handle_t s_assets_handle = NULL;

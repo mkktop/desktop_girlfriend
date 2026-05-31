@@ -19,7 +19,7 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 
-static const char *TAG = "main";
+#define TAG "main"
 
 void app_main(void)
 {
@@ -28,9 +28,11 @@ void app_main(void)
     /* 1. 初始化 NVS */
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(TAG, "Erasing NVS flash to fix corruption");
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
+    ESP_ERROR_CHECK(ret);
 
     /* 2. 初始化事件系统（最先初始化，其他模块依赖） */
     app_event_init();

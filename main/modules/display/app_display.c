@@ -26,7 +26,7 @@
 #include "board.h"
 #include "app_display.h"
 
-static const char *TAG = "app_display";
+#define TAG "app_display"
 
 /* LVGL显示对象 */
 static lv_display_t *s_display = NULL;
