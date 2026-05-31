@@ -13,6 +13,7 @@
 #include "ui_wifi_config.h"
 #include "app_event.h"
 #include "app_wifi.h"
+#include "app_font.h"
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
 
@@ -117,6 +118,7 @@ void ui_manager_init(void)
         /* 创建状态栏标签 */
         s_status_label = lv_label_create(lv_screen_active());
         lv_label_set_text(s_status_label, "WiFi: \xe7\xad\x89\xe5\xbe\x85\xe8\xbf\x9e\xe6\x8e\xa5..."); /* 等待连接... */
+        lv_obj_set_style_text_font(s_status_label, app_font_get_text(), 0);
         lv_obj_align(s_status_label, LV_ALIGN_TOP_LEFT, 5, 5);
 
         /* 创建首页 */

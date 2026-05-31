@@ -9,6 +9,7 @@
 
 #include "ui_wifi_config.h"
 #include "app_wifi.h"
+#include "app_font.h"
 #include "lvgl.h"
 
 /* 页面对象引用（用于 destroy 时清理） */
@@ -31,9 +32,10 @@ void ui_wifi_config_create(void)
     lv_obj_set_style_text_color(s_icon_label, lv_color_hex(0x4A90D9), 0);
     lv_obj_align(s_icon_label, LV_ALIGN_TOP_MID, 0, 35);
 
-    /* "配网模式" 标题（使用默认 CJK 字体，含中文字形） */
+    /* "配网模式" 标题（使用字体管理器提供的 CJK 字体） */
     s_title_label = lv_label_create(scr);
     lv_label_set_text(s_title_label, "\xe9\x85\x8d\xe7\xbd\x91\xe6\xa8\xa1\xe5\xbc\x8f"); /* 配网模式 */
+    lv_obj_set_style_text_font(s_title_label, app_font_get_text(), 0);
     lv_obj_align(s_title_label, LV_ALIGN_TOP_MID, 0, 85);
 
     /* 引导文本：动态拼接AP名称、密码、URL */
@@ -52,12 +54,14 @@ void ui_wifi_config_create(void)
     s_hint_label = lv_label_create(scr);
     lv_label_set_text(s_hint_label, hint_text);
     lv_label_set_long_mode(s_hint_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(s_hint_label, app_font_get_text(), 0);
     lv_obj_set_width(s_hint_label, 220);
     lv_obj_align(s_hint_label, LV_ALIGN_TOP_MID, 0, 115);
 
     /* 底部等待提示 */
     s_wait_label = lv_label_create(scr);
     lv_label_set_text(s_wait_label, "\xe2\x97\x8f \xe7\xad\x89\xe5\xbe\x85\xe9\x85\x8d\xe7\xbd\x91\xe4\xb8\xad..."); /* ● 等待配网中... */
+    lv_obj_set_style_text_font(s_wait_label, app_font_get_text(), 0);
     lv_obj_set_style_text_color(s_wait_label, lv_color_hex(0x999999), 0);
     lv_obj_align(s_wait_label, LV_ALIGN_TOP_MID, 0, 280);
 }

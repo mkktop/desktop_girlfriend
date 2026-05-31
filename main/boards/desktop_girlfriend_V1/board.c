@@ -35,6 +35,12 @@ static const board_t s_board = {
         .channel = 1,
         .max_conn = 1,
     },
+
+    /* 字体配置（阿里巴巴普惠体，与小智一致） */
+    .font = {
+        .builtin_text_font = "font_puhui_basic_16_4",
+        .cbin_text_font = "font_puhui_common_16_4.bin",
+    },
 };
 
 const board_t *board_get_instance(void)

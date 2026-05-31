@@ -48,6 +48,16 @@ typedef struct {
 } wifi_ap_cfg_t;
 
 /**
+ * @brief 字体配置
+ * @note 每个板卡可指定使用的内置字体和运行时 CBin 字体，
+ *       实现两层字体策略（内置 fallback + 运行时加载）
+ */
+typedef struct {
+    const char *builtin_text_font;   /* 内置文本字体符号名（如 "font_puhui_basic_16_4"） */
+    const char *cbin_text_font;      /* CBin 运行时字体文件名（如 "font_puhui_common_16_4.bin"） */
+} font_cfg_t;
+
+/**
  * @brief 板卡配置结构体
  * @note 各板卡通过填充此结构体来适配不同硬件，
  *       外设配置通过嵌套结构体分组，扩展时只需添加新的 cfg_t
@@ -59,6 +69,7 @@ typedef struct {
     /* 外设配置 */
     lcd_cfg_t lcd;                   /* LCD 显示配置 */
     wifi_ap_cfg_t wifi_ap;           /* WiFi 配网参数 */
+    font_cfg_t font;                 /* 字体配置 */
 
     /* 未来扩展预留：
      * audio_i2s_cfg_t audio;        // 音频 I2S 配置

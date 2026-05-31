@@ -8,6 +8,7 @@
  */
 
 #include "ui_home.h"
+#include "app_font.h"
 #include "lvgl.h"
 
 /* 页面对象引用（用于 destroy 时清理） */
@@ -20,6 +21,7 @@ void ui_home_create(void)
 {
     s_label = lv_label_create(lv_screen_active());
     lv_label_set_text(s_label, "Desktop Girlfriend");
+    lv_obj_set_style_text_font(s_label, app_font_get_text(), 0);
     lv_obj_center(s_label);
 }
 
