@@ -4,7 +4,7 @@
 @note  参照 xiaozhi-esp32 的 release.py 简化适配
        核心功能：
        1. --list-boards --json：扫描板卡 config.json，输出构建矩阵
-       2. 编译模式：set-target → 追加 sdkconfig → build → merge-bin → zip
+       2. 编译模式：检测target → 按需set-target → 追加 sdkconfig → build → merge-bin → zip
        3. 本地打包：merge-bin + zip 当前 build 产物
 """
 
@@ -106,6 +106,19 @@ def _collect_variants(config_filename: str = "config.json") -> list[dict[str, st
     return variants
 
 
+def _get_current_target() -> Optional[str]:
+    """从 sdkconfig 读取当前的 IDF_TARGET"""
+    sdkconfig = Path("sdkconfig")
+    if not sdkconfig.exists():
+        return None
+    with sdkconfig.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("CONFIG_IDF_TARGET="):
+                return line.split('"')[1]
+    return None
+
+
 def _board_dir_exists(board_type: str) -> bool:
     """检查板卡目录是否存在"""
     return (_BOARDS_DIR / board_type).is_dir()
@@ -160,10 +173,15 @@ def release(board_type: str, config_filename: str = "config.json", *, filter_nam
         # 清除可能残留的 IDF_TARGET 环境变量
         os.environ.pop("IDF_TARGET", None)
 
-        # 设置目标芯片
-        if os.system(f"idf.py set-target {target}") != 0:
-            print("set-target failed", file=sys.stderr)
-            sys.exit(1)
+        # 仅在 target 变化时才重新 set-target（避免清空 sdkconfig）
+        current_target = _get_current_target()
+        if current_target != target:
+            print(f"Changing target: {current_target} -> {target}")
+            if os.system(f"idf.py set-target {target}") != 0:
+                print("set-target failed", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print(f"Target already {target}, skipping set-target")
 
         # 追加 sdkconfig 配置
         with Path("sdkconfig").open("a", encoding="utf-8") as f:
