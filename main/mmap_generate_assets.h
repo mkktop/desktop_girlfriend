@@ -13,9 +13,30 @@
 
 #include "esp_mmap_assets.h"
 
-#define MMAP_ASSETS_FILES           1
-#define MMAP_ASSETS_CHECKSUM        0x5D3C
+#define MMAP_ASSETS_FILES           22
+#define MMAP_ASSETS_CHECKSUM        0x31B5
 
 enum MMAP_ASSETS_LISTS {
     MMAP_ASSETS_FONT_PUHUI_COMMON_16_4_BIN = 0,        /*!< font_puhui_common_16_4.bin */
+    MMAP_ASSETS_ANGRY_GIF = 1,        /*!< angry.gif */
+    MMAP_ASSETS_CONFIDENT_GIF = 2,        /*!< confident.gif */
+    MMAP_ASSETS_CONFUSED_GIF = 3,        /*!< confused.gif */
+    MMAP_ASSETS_COOL_GIF = 4,        /*!< cool.gif */
+    MMAP_ASSETS_CRYING_GIF = 5,        /*!< crying.gif */
+    MMAP_ASSETS_DELICIOUS_GIF = 6,        /*!< delicious.gif */
+    MMAP_ASSETS_EMBARRASSED_GIF = 7,        /*!< embarrassed.gif */
+    MMAP_ASSETS_FUNNY_GIF = 8,        /*!< funny.gif */
+    MMAP_ASSETS_HAPPY_GIF = 9,        /*!< happy.gif */
+    MMAP_ASSETS_KISSY_GIF = 10,        /*!< kissy.gif */
+    MMAP_ASSETS_LAUGHING_GIF = 11,        /*!< laughing.gif */
+    MMAP_ASSETS_LOVING_GIF = 12,        /*!< loving.gif */
+    MMAP_ASSETS_NEUTRAL_GIF = 13,        /*!< neutral.gif */
+    MMAP_ASSETS_RELAXED_GIF = 14,        /*!< relaxed.gif */
+    MMAP_ASSETS_SAD_GIF = 15,        /*!< sad.gif */
+    MMAP_ASSETS_SHOCKED_GIF = 16,        /*!< shocked.gif */
+    MMAP_ASSETS_SILLY_GIF = 17,        /*!< silly.gif */
+    MMAP_ASSETS_SLEEPY_GIF = 18,        /*!< sleepy.gif */
+    MMAP_ASSETS_SURPRISED_GIF = 19,        /*!< surprised.gif */
+    MMAP_ASSETS_THINKING_GIF = 20,        /*!< thinking.gif */
+    MMAP_ASSETS_WINKING_GIF = 21,        /*!< winking.gif */
 };

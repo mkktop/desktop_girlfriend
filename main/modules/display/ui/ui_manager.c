@@ -35,10 +35,10 @@ static lv_obj_t *s_page_container = NULL;   /* 页面层容器 */
 
 static ui_page_id_t s_current_page = UI_PAGE_COUNT; /* 未初始化 */
 
-/* 页面注册表：每个页面的 create 和 on_event */
+/* 页面注册表：每个页面的 create、on_event、destroy */
 static const ui_page_interface_t s_pages[UI_PAGE_COUNT] = {
-    [UI_PAGE_HOME]        = { .create = ui_home_create,        .on_event = ui_home_on_event },
-    [UI_PAGE_WIFI_CONFIG] = { .create = ui_wifi_config_create, .on_event = NULL },
+    [UI_PAGE_HOME]        = { .create = ui_home_create,        .on_event = ui_home_on_event,  .destroy = ui_home_destroy },
+    [UI_PAGE_WIFI_CONFIG] = { .create = ui_wifi_config_create, .on_event = NULL,              .destroy = NULL },
 };
 
 /* ====== 页面切换 ====== */
@@ -54,6 +54,11 @@ void ui_manager_switch_page(ui_page_id_t page)
     }
 
     ESP_LOGI(TAG, "Switching page: %d -> %d", s_current_page, page);
+
+    /* 销毁旧页面资源（GIF 播放器等，必须在 lv_obj_clean 前调用） */
+    if (s_current_page < UI_PAGE_COUNT && s_pages[s_current_page].destroy) {
+        s_pages[s_current_page].destroy();
+    }
 
     /* 清空页面容器（一行删除旧页面所有子对象） */
     lv_obj_clean(s_page_container);
@@ -188,4 +193,18 @@ lv_obj_t *ui_manager_get_page_container(void)
 ui_page_id_t ui_manager_get_current_page(void)
 {
     return s_current_page;
+}
+
+void ui_manager_set_emotion(const char *emotion)
+{
+    if (s_current_page == UI_PAGE_HOME) {
+        ui_home_set_emotion(emotion);
+    }
+}
+
+void ui_manager_set_subtitle(const char *text)
+{
+    if (s_current_page == UI_PAGE_HOME) {
+        ui_home_set_subtitle(text);
+    }
 }

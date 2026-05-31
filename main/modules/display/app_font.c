@@ -95,3 +95,11 @@ const lv_font_t *app_font_get_icon(void)
 {
     return s_icon_font;
 }
+
+/**
+ * @brief 获取资源分区句柄
+ */
+mmap_assets_handle_t app_font_get_assets_handle(void)
+{
+    return s_assets_handle;
+}

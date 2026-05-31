@@ -12,6 +12,7 @@
 #define __APP_FONT_H__
 
 #include "lvgl.h"
+#include "esp_mmap_assets.h"
 
 /**
  * @brief 初始化字体管理器
@@ -33,5 +34,12 @@ const lv_font_t *app_font_get_text(void);
  * @return const lv_font_t* 图标字体指针
  */
 const lv_font_t *app_font_get_icon(void);
+
+/**
+ * @brief 获取资源分区句柄
+ * @return mmap_assets_handle_t 资源分区句柄，NULL 表示不可用
+ * @note 供其他模块（如表情系统）访问 assets 分区中的文件
+ */
+mmap_assets_handle_t app_font_get_assets_handle(void);
 
 #endif /* __APP_FONT_H__ */
