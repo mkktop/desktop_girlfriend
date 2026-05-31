@@ -27,13 +27,13 @@ LV_FONT_DECLARE(font_awesome_16_4)
 static mmap_assets_handle_t s_assets_handle = NULL;
 
 /* 当前激活的文本字体指针 */
-static lv_font_t *s_text_font = NULL;
+static const lv_font_t *s_text_font = NULL;
 
 /* CBin 运行时字体（从资源分区加载，需要时释放） */
 static lv_font_t *s_cbin_font = NULL;
 
 /* 图标字体（内置，不需要运行时加载） */
-static lv_font_t *s_icon_font = NULL;
+static const lv_font_t *s_icon_font = NULL;
 
 /**
  * @brief 初始化字体管理器
@@ -83,7 +83,7 @@ void app_font_init(void)
 /**
  * @brief 获取当前文本字体
  */
-lv_font_t *app_font_get_text(void)
+const lv_font_t *app_font_get_text(void)
 {
     return s_text_font;
 }
@@ -91,7 +91,7 @@ lv_font_t *app_font_get_text(void)
 /**
  * @brief 获取图标字体
  */
-lv_font_t *app_font_get_icon(void)
+const lv_font_t *app_font_get_icon(void)
 {
     return s_icon_font;
 }

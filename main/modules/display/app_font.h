@@ -23,15 +23,15 @@ void app_font_init(void);
 
 /**
  * @brief 获取当前文本字体（CJK）
- * @return lv_font_t* 文本字体指针，始终返回有效字体
+ * @return const lv_font_t* 文本字体指针，始终返回有效字体
  * @note 优先返回 CBin 运行时字体，否则返回内置基础字体
  */
-lv_font_t *app_font_get_text(void);
+const lv_font_t *app_font_get_text(void);
 
 /**
  * @brief 获取图标字体（FontAwesome 16px）
- * @return lv_font_t* 图标字体指针
+ * @return const lv_font_t* 图标字体指针
  */
-lv_font_t *app_font_get_icon(void);
+const lv_font_t *app_font_get_icon(void);
 
 #endif /* __APP_FONT_H__ */

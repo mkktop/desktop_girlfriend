@@ -14,7 +14,7 @@
 #include "esp_mmap_assets.h"
 
 #define MMAP_ASSETS_FILES           1
-#define MMAP_ASSETS_CHECKSUM        0x5A0E
+#define MMAP_ASSETS_CHECKSUM        0x5D3C
 
 enum MMAP_ASSETS_LISTS {
     MMAP_ASSETS_FONT_PUHUI_COMMON_16_4_BIN = 0,        /*!< font_puhui_common_16_4.bin */

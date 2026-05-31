@@ -2213,7 +2213,7 @@ CONFIG_CU_DIAGNOSTICS_COLOR_ALWAYS=y
 #
 # mmap file support format
 #
-CONFIG_MMAP_FILE_NAME_LENGTH=16
+CONFIG_MMAP_FILE_NAME_LENGTH=32
 # end of mmap file support format
 
 #

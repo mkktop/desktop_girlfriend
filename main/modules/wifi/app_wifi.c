@@ -326,6 +326,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         snprintf(wifi_state.message, sizeof(wifi_state.message),
                  "%s\nIP: %s", temp, wifi_state.ip);
         app_event_set_bits(APP_EVENT_WIFI_GOT_IP);
+
+        /* 配网模式下获取到 IP，自动退出配网模式 */
+        if (s_config_mode) {
+            exit_config_mode();
+        }
     }
 }
 
@@ -680,6 +685,7 @@ esp_err_t app_wifi_start(void)
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
         ESP_ERROR_CHECK(esp_wifi_start());
+        ESP_ERROR_CHECK(esp_wifi_connect());
 
         wifi_state.connecting = true;
         snprintf(wifi_state.message, sizeof(wifi_state.message),

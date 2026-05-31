@@ -13,7 +13,8 @@ idf_component_register(
          "modules/display/ui/ui_home.c"
          "modules/display/ui/ui_wifi_config.c"
          "modules/wifi/app_wifi.c"
-    INCLUDE_DIRS "." "boards" "modules/event" "modules/display" "modules/display/ui" "modules/wifi"
+         "modules/sntp/app_sntp.c"
+    INCLUDE_DIRS "." "boards" "modules/event" "modules/display" "modules/display/ui" "modules/wifi" "modules/sntp"
     EMBED_FILES "resources/html/index.html"
     REQUIRES esp_partition esp_psram esp_wifi nvs_flash esp_http_server esp_netif esp_timer json esp_event
 )

@@ -3,7 +3,7 @@
  * @brief 应用入口
  * @author mkk
  * @date 2026-05-30
- * @note 初始化顺序：NVS → 事件系统 → WiFi → 显示硬件 → 字体 → UI，
+ * @note 初始化顺序：NVS → 事件系统 → SNTP → WiFi → 显示硬件 → 字体 → UI，
  *       主线程以优先级10运行 EventGroup 驱动的事件循环，
  *       按优先级顺序处理各类事件
  */
@@ -13,6 +13,7 @@
 #include "freertos/task.h"
 #include "modules/event/app_event.h"
 #include "modules/wifi/app_wifi.h"
+#include "modules/sntp/app_sntp.h"
 #include "modules/display/app_display.h"
 #include "modules/display/app_font.h"
 #include "modules/display/ui/ui_manager.h"
@@ -37,24 +38,27 @@ void app_main(void)
     /* 2. 初始化事件系统（最先初始化，其他模块依赖） */
     app_event_init();
 
-    /* 3. 初始化 WiFi */
+    /* 3. 初始化 SNTP（仅注册事件处理器，实际同步在获取 IP 后） */
+    app_sntp_init();
+
+    /* 4. 初始化 WiFi */
     app_wifi_init();
     app_wifi_start();
 
-    /* 4. 初始化显示硬件（LVGL 核心初始化） */
+    /* 5. 初始化显示硬件（LVGL 核心初始化） */
     app_display_init();
 
-    /* 5. 初始化字体管理器（内置字体 + 尝试加载 CBin 运行时字体） */
+    /* 6. 初始化字体管理器（内置字体 + 尝试加载 CBin 运行时字体） */
     app_font_init();
 
-    /* 6. 初始化 UI（在显示硬件和字体之后） */
+    /* 7. 初始化 UI（在显示硬件和字体之后） */
     ui_manager_init();
 
-    /* 7. 提升主任务优先级（与小智一致，确保事件及时响应） */
+    /* 8. 提升主任务优先级（确保事件及时响应） */
     vTaskPrioritySet(NULL, 10);
     ESP_LOGI(TAG, "Main task priority set to 10");
 
-    /* 8. 主事件循环（按优先级顺序处理，非 else-if，可同时处理多个位） */
+    /* 9. 主事件循环（按优先级顺序处理，非 else-if，可同时处理多个位） */
     const EventBits_t all_bits = APP_EVENT_ALL_BITS | APP_EVENT_SCHEDULE_PENDING;
     while (1) {
         EventBits_t bits = app_event_wait(all_bits, true, portMAX_DELAY);
@@ -91,7 +95,12 @@ void app_main(void)
             app_event_dispatch_to_handlers(APP_EVENT_WIFI_CONFIG_EXIT);
         }
 
-        /* Schedule 延迟回调（最后处理，与小智一致） */
+        /* 时间同步事件 */
+        if (bits & APP_EVENT_TIME_SYNCED) {
+            app_event_dispatch_to_handlers(APP_EVENT_TIME_SYNCED);
+        }
+
+        /* Schedule 延迟回调（最后处理） */
         if (bits & APP_EVENT_SCHEDULE_PENDING) {
             app_event_schedule_drain();
         }

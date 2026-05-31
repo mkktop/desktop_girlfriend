@@ -16,6 +16,7 @@
 #include "app_font.h"
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
+#include <time.h>
 
 #define TAG "ui_manager"
 
@@ -100,6 +101,17 @@ static void ui_event_handler(EventBits_t event_bits, void *user_ctx)
         }
     }
 
+    /* 时间同步 — 更新首页时钟 */
+    if (event_bits & APP_EVENT_TIME_SYNCED) {
+        if (s_current_page == UI_PAGE_HOME) {
+            time_t now = time(NULL);
+            struct tm *tm_info = localtime(&now);
+            char time_str[16];
+            strftime(time_str, sizeof(time_str), "%H:%M", tm_info);
+            ui_home_update_clock(time_str);
+        }
+    }
+
     lvgl_port_unlock();
 }
 
@@ -107,10 +119,11 @@ void ui_manager_init(void)
 {
     ESP_LOGI(TAG, "Initializing UI manager...");
 
-    /* 注册为事件观察者，关心 WiFi 状态 + 配网模式事件 */
+    /* 注册为事件观察者，关心 WiFi 状态 + 配网模式 + 时间同步事件 */
     const EventBits_t wifi_bits =
         APP_EVENT_WIFI_CONNECTED | APP_EVENT_WIFI_DISCONNECTED | APP_EVENT_WIFI_GOT_IP
-      | APP_EVENT_WIFI_CONFIG_ENTER | APP_EVENT_WIFI_CONFIG_EXIT;
+      | APP_EVENT_WIFI_CONFIG_ENTER | APP_EVENT_WIFI_CONFIG_EXIT
+      | APP_EVENT_TIME_SYNCED;
     app_event_register_handler(ui_event_handler, wifi_bits, NULL);
 
     /* 在锁保护下创建UI */

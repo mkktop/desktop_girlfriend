@@ -21,4 +21,11 @@ void ui_home_create(void);
  */
 void ui_home_destroy(void);
 
+/**
+ * @brief 更新首页时钟显示
+ * @param time_str 时间字符串（如 "12:30"）
+ * @note 必须在 lvgl_port_lock() 保护下调用
+ */
+void ui_home_update_clock(const char *time_str);
+
 #endif /* __UI_HOME_H__ */
