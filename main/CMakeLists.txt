@@ -10,6 +10,7 @@ idf_component_register(
          "modules/display/app_display.c"
          "modules/display/ui/ui_manager.c"
          "modules/display/ui/ui_home.c"
+         "modules/display/ui/ui_wifi_config.c"
          "modules/wifi/app_wifi.c"
     INCLUDE_DIRS "." "boards" "modules/event" "modules/display" "modules/display/ui" "modules/wifi"
     EMBED_FILES "resources/html/index.html"

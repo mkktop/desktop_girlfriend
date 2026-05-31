@@ -66,4 +66,16 @@ esp_err_t app_wifi_get_mac(uint8_t *mac);
  */
 esp_err_t app_wifi_stop_ap(void);
 
+/**
+ * @brief 获取配网AP热点名称
+ * @return AP SSID字符串，未进入配网模式时返回空字符串
+ */
+const char *app_wifi_get_ap_ssid(void);
+
+/**
+ * @brief 获取配网AP热点密码
+ * @return AP密码字符串
+ */
+const char *app_wifi_get_ap_password(void);
+
 #endif /* __APP_WIFI_H__ */

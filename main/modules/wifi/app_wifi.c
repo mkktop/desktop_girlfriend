@@ -35,6 +35,7 @@ static bool s_was_connected = false;         /* 是否曾经成功连接过 */
 static uint32_t s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
 static esp_timer_handle_t s_connect_timer;   /* 首次连接60秒超时 */
 static esp_timer_handle_t s_reconnect_timer; /* 退避重连定时器 */
+static char s_ap_ssid[33] = {0};            /* 生成的AP热点名称 */
 
 /* HTTP服务器句柄 */
 static httpd_handle_t server = NULL;
@@ -161,6 +162,7 @@ static void enter_config_mode(void)
     /* 生成动态AP名称：前缀-MAC后4位 */
     char ap_ssid[33];
     generate_ap_ssid(ap_ssid, sizeof(ap_ssid));
+    strlcpy(s_ap_ssid, ap_ssid, sizeof(s_ap_ssid));
 
     ESP_LOGI(TAG, "进入配网模式，AP: %s", ap_ssid);
 
@@ -194,6 +196,7 @@ static void exit_config_mode(void)
         return;
     }
     s_config_mode = false;
+    s_ap_ssid[0] = '\0';
 
     ESP_LOGI(TAG, "退出配网模式");
 
@@ -728,4 +731,15 @@ const char *app_wifi_get_ip(void)
 const char *app_wifi_get_ssid(void)
 {
     return wifi_state.ssid[0] ? wifi_state.ssid : "";
+}
+
+const char *app_wifi_get_ap_ssid(void)
+{
+    return s_ap_ssid[0] ? s_ap_ssid : "";
+}
+
+const char *app_wifi_get_ap_password(void)
+{
+    const board_t *board = board_get_instance();
+    return board->wifi_ap.password;
 }
