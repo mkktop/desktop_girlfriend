@@ -1,0 +1,11 @@
+{
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "desktop_girlfriend_V1",
+            "sdkconfig_append": [
+                "CONFIG_BOARD_TYPE_DESKTOP_GIRLFRIEND_V1=y"
+            ]
+        }
+    ]
+}
