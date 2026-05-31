@@ -30,7 +30,7 @@ static const board_t s_board = {
 
     /* WiFi 配网参数 */
     .wifi_ap = {
-        .ssid = "mkk_wifi",
+        .ssid_prefix = "desktop_girlfriend",
         .password = "123456789",
         .channel = 1,
         .max_conn = 1,

@@ -41,7 +41,7 @@ typedef struct {
  * @brief WiFi 配网 AP 参数
  */
 typedef struct {
-    const char *ssid;                /* 配网热点名称 */
+    const char *ssid_prefix;         /* 配网热点名称前缀（运行时拼接MAC后4位） */
     const char *password;            /* 配网热点密码 */
     int channel;                     /* WiFi 信道 */
     int max_conn;                    /* 最大连接数 */

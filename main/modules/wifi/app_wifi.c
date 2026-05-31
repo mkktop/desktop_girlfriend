@@ -2,9 +2,11 @@
  * @file app_wifi.c
  * @brief WiFi配网模块实现
  * @author mkk
- * @date 2026-05-30
- * @note 提供WiFi AP+STA模式配网功能，内置HTTP服务器，
- *       通过app_event通知WiFi状态变化
+ * @date 2026-05-31
+ * @note WiFi配网与重连策略：
+ *       首次启动：先尝试连接已保存WiFi，60秒超时后自动进入配网模式，最多立即重试5次；
+ *       配网成功后断线：无限重试 + 指数退避（10s→20s→40s→...→300s封顶），不进配网模式；
+ *       配网通过 AP 热点 + HTTP 服务器实现
  */
 
 #include "app_wifi.h"
@@ -12,6 +14,7 @@
 #include "board.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "string.h"
 #include "nvs_flash.h"
 #include "esp_http_server.h"
@@ -19,8 +22,19 @@
 
 static const char *TAG = "app_wifi";
 
-/* 自动重连标志 */
-static bool auto_reconnect = false;
+/* 重连和超时常量 */
+#define MAX_RECONNECT_COUNT      5       /* 首次连接最大立即重试次数 */
+#define CONNECT_TIMEOUT_SEC      60      /* 首次连接超时（秒） */
+#define RECONNECT_MIN_INTERVAL_MS  10000   /* 退避最小间隔 10秒 */
+#define RECONNECT_MAX_INTERVAL_MS  300000  /* 退避最大间隔 300秒（5分钟） */
+
+/* 模块状态 */
+static int s_reconnect_count = 0;
+static bool s_config_mode = false;
+static bool s_was_connected = false;         /* 是否曾经成功连接过 */
+static uint32_t s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
+static esp_timer_handle_t s_connect_timer;   /* 首次连接60秒超时 */
+static esp_timer_handle_t s_reconnect_timer; /* 退避重连定时器 */
 
 /* HTTP服务器句柄 */
 static httpd_handle_t server = NULL;
@@ -43,6 +57,160 @@ static struct {
     .ssid = "",
     .ip = "",
 };
+
+/* ====== 内部函数声明 ====== */
+
+static void enter_config_mode(void);
+static void stop_connect_timer(void);
+static void start_connect_timer(void);
+static void stop_reconnect_timer(void);
+static esp_err_t start_webserver(void);
+
+/**
+ * @brief 生成动态AP热点名称（前缀 + MAC后4位）
+ * @param buf 输出缓冲区
+ * @param buf_len 缓冲区长度
+ * @note 格式示例：desktop_girlfriend-A1B2
+ */
+static void generate_ap_ssid(char *buf, size_t buf_len)
+{
+    const board_t *board = board_get_instance();
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    snprintf(buf, buf_len, "%s-%02X%02X", board->wifi_ap.ssid_prefix, mac[4], mac[5]);
+}
+
+/* ====== 定时器回调 ====== */
+
+/**
+ * @brief 首次连接超时回调（60秒）
+ * @note 超时后自动进入配网模式
+ */
+static void connect_timeout_cb(void *arg)
+{
+    ESP_LOGW(TAG, "连接超时（%d秒），进入配网模式", CONNECT_TIMEOUT_SEC);
+    app_event_set_bits(APP_EVENT_WIFI_DISCONNECTED);
+    enter_config_mode();
+}
+
+/**
+ * @brief 退避重连定时器回调
+ * @note 每次触发时尝试重新连接WiFi
+ */
+static void reconnect_timer_cb(void *arg)
+{
+    ESP_LOGI(TAG, "退避重连（间隔 %lu ms）...", (unsigned long)s_reconnect_interval_ms);
+    esp_wifi_connect();
+}
+
+/* ====== 定时器管理 ====== */
+
+static void stop_connect_timer(void)
+{
+    if (s_connect_timer) {
+        esp_timer_stop(s_connect_timer);
+    }
+}
+
+static void start_connect_timer(void)
+{
+    stop_connect_timer();
+    esp_timer_start_once(s_connect_timer, CONNECT_TIMEOUT_SEC * 1000000ULL);
+    ESP_LOGI(TAG, "连接超时定时器已启动（%d秒）", CONNECT_TIMEOUT_SEC);
+}
+
+static void stop_reconnect_timer(void)
+{
+    if (s_reconnect_timer) {
+        esp_timer_stop(s_reconnect_timer);
+    }
+}
+
+/**
+ * @brief 启动退避重连定时器
+ * @note 每次调用翻倍间隔，封顶 RECONNECT_MAX_INTERVAL_MS
+ */
+static void start_reconnect_timer(void)
+{
+    stop_reconnect_timer();
+    esp_timer_start_once(s_reconnect_timer, (uint64_t)s_reconnect_interval_ms * 1000ULL);
+
+    /* 翻倍间隔，封顶 */
+    s_reconnect_interval_ms *= 2;
+    if (s_reconnect_interval_ms > RECONNECT_MAX_INTERVAL_MS) {
+        s_reconnect_interval_ms = RECONNECT_MAX_INTERVAL_MS;
+    }
+}
+
+/* ====== 配网模式管理 ====== */
+
+/**
+ * @brief 进入配网模式
+ * @note 启动 AP 热点和 HTTP 服务器，等待用户配网
+ */
+static void enter_config_mode(void)
+{
+    if (s_config_mode) {
+        return;
+    }
+    s_config_mode = true;
+
+    const board_t *board = board_get_instance();
+    const wifi_ap_cfg_t *wifi_ap = &board->wifi_ap;
+
+    /* 生成动态AP名称：前缀-MAC后4位 */
+    char ap_ssid[33];
+    generate_ap_ssid(ap_ssid, sizeof(ap_ssid));
+
+    ESP_LOGI(TAG, "进入配网模式，AP: %s", ap_ssid);
+
+    /* 切换为 APSTA 模式 */
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+
+    wifi_config_t ap_config = {
+        .ap = {
+            .ssid_len = strlen(ap_ssid),
+            .channel = wifi_ap->channel,
+            .authmode = WIFI_AUTH_WPA2_PSK,
+            .max_connection = wifi_ap->max_conn,
+        },
+    };
+    strlcpy((char *)ap_config.ap.ssid, ap_ssid, sizeof(ap_config.ap.ssid));
+    strlcpy((char *)ap_config.ap.password, wifi_ap->password, sizeof(ap_config.ap.password));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(start_webserver());
+
+    app_event_set_bits(APP_EVENT_WIFI_CONFIG_ENTER);
+}
+
+/**
+ * @brief 退出配网模式
+ * @note 停止 HTTP 服务器，切换为纯 STA 模式
+ */
+static void exit_config_mode(void)
+{
+    if (!s_config_mode) {
+        return;
+    }
+    s_config_mode = false;
+
+    ESP_LOGI(TAG, "退出配网模式");
+
+    /* 停止 HTTP 服务器 */
+    if (server) {
+        httpd_stop(server);
+        server = NULL;
+    }
+
+    /* 切换为纯 STA 模式 */
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_wifi_start();
+
+    app_event_set_bits(APP_EVENT_WIFI_CONFIG_EXIT);
+}
+
+/* ====== WiFi 事件处理 ====== */
 
 /**
  * @brief WiFi事件处理函数
@@ -70,10 +238,17 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             memcpy(wifi_state.ssid, event->ssid, event->ssid_len);
             wifi_state.ssid[event->ssid_len] = '\0';
             wifi_state.connected = true;
-            auto_reconnect = true;
+            s_was_connected = true;
+            s_reconnect_count = 0;
+            s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
             snprintf(wifi_state.message, sizeof(wifi_state.message),
                      "已连接到WiFi: %s", wifi_state.ssid);
             ESP_LOGI(TAG, "已连接到WiFi: %s", wifi_state.ssid);
+
+            /* 连接成功，取消所有定时器 */
+            stop_connect_timer();
+            stop_reconnect_timer();
+
             app_event_set_bits(APP_EVENT_WIFI_CONNECTED);
             break;
         }
@@ -111,9 +286,21 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
             app_event_set_bits(APP_EVENT_WIFI_DISCONNECTED);
 
-            if (auto_reconnect) {
-                ESP_LOGI(TAG, "尝试重新连接...");
-                esp_wifi_connect();
+            if (!s_was_connected) {
+                /* 首次连接阶段：有限次立即重试，超限进配网模式 */
+                if (s_reconnect_count < MAX_RECONNECT_COUNT) {
+                    s_reconnect_count++;
+                    ESP_LOGI(TAG, "首次连接重试 (%d/%d)...", s_reconnect_count, MAX_RECONNECT_COUNT);
+                    esp_wifi_connect();
+                } else {
+                    ESP_LOGW(TAG, "首次连接重试次数已达上限 (%d)，进入配网模式", MAX_RECONNECT_COUNT);
+                    enter_config_mode();
+                }
+            } else {
+                /* 曾成功连接后断线：无限重试 + 指数退避，不进配网 */
+                ESP_LOGI(TAG, "启动退避重连（间隔 %lu ms）...",
+                         (unsigned long)s_reconnect_interval_ms);
+                start_reconnect_timer();
             }
             break;
         }
@@ -124,6 +311,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         snprintf(wifi_state.ip, sizeof(wifi_state.ip), IPSTR, IP2STR(&event->ip_info.ip));
         wifi_state.connecting = false;
+        s_reconnect_count = 0;
+        s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
+
+        /* 连接成功，取消所有定时器 */
+        stop_connect_timer();
+        stop_reconnect_timer();
+
         char temp[96];
         snprintf(temp, sizeof(temp), "WiFi: %s", wifi_state.ssid);
         snprintf(wifi_state.message, sizeof(wifi_state.message),
@@ -131,6 +325,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         app_event_set_bits(APP_EVENT_WIFI_GOT_IP);
     }
 }
+
+/* ====== NVS 读写 ====== */
 
 /**
  * @brief 从NVS读取WiFi配置
@@ -144,7 +340,6 @@ static esp_err_t read_wifi_config(char *ssid, char *password)
 
     ret = nvs_open("wifi_config", NVS_READONLY, &nvs_handle);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open nvs");
         return ret;
     }
 
@@ -171,7 +366,7 @@ static esp_err_t read_wifi_config(char *ssid, char *password)
     }
 
     nvs_close(nvs_handle);
-    ESP_LOGI(TAG, "Read WiFi config - SSID: %s", ssid);
+    ESP_LOGI(TAG, "读取WiFi配置 - SSID: %s", ssid);
     return ESP_OK;
 }
 
@@ -224,11 +419,22 @@ static esp_err_t connect_handler(httpd_req_t *req)
     buf[ret] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
-    if (!root)
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
+    }
 
-    const char *ssid = cJSON_GetObjectItem(root, "ssid")->valuestring;
-    const char *password = cJSON_GetObjectItem(root, "password")->valuestring;
+    /* 空指针安全检查 */
+    cJSON *ssid_item = cJSON_GetObjectItem(root, "ssid");
+    cJSON *pass_item = cJSON_GetObjectItem(root, "password");
+    if (!ssid_item || !pass_item || !ssid_item->valuestring || !pass_item->valuestring) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid or password");
+        return ESP_FAIL;
+    }
+
+    const char *ssid = ssid_item->valuestring;
+    const char *password = pass_item->valuestring;
 
     if (save_wifi_config(ssid, password) != ESP_OK) {
         cJSON_Delete(root);
@@ -249,7 +455,9 @@ static esp_err_t connect_handler(httpd_req_t *req)
     strlcpy((char *)sta_config.sta.password, password, sizeof(sta_config.sta.password));
 
     wifi_state.connecting = true;
-    auto_reconnect = true;
+    s_reconnect_count = 0;
+    s_was_connected = false;
+    s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
     snprintf(wifi_state.message, sizeof(wifi_state.message), "正在连接到 %s...", ssid);
     app_event_set_bits(APP_EVENT_WIFI_CONNECTING);
 
@@ -264,6 +472,9 @@ static esp_err_t connect_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     ESP_LOGI(TAG, "设置STA配置成功");
+
+    /* 启动连接超时定时器 */
+    start_connect_timer();
 
     cJSON_Delete(root);
     httpd_resp_send(req, "Success! Device is connecting to WiFi...", -1);
@@ -332,7 +543,11 @@ static esp_err_t status_handler(httpd_req_t *req)
 
 static esp_err_t disconnect_handler(httpd_req_t *req)
 {
-    auto_reconnect = false;
+    s_was_connected = false;
+    s_reconnect_count = 0;
+    s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
+    stop_connect_timer();
+    stop_reconnect_timer();
     ESP_ERROR_CHECK(esp_wifi_disconnect());
     httpd_resp_send(req, "Disconnected", -1);
     return ESP_OK;
@@ -379,6 +594,10 @@ static const httpd_uri_t status_uri = {
 
 static esp_err_t start_webserver(void)
 {
+    if (server) {
+        return ESP_OK;
+    }
+
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
     config.max_uri_handlers = 10;
@@ -413,36 +632,75 @@ esp_err_t app_wifi_init(void)
                                                 &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
                                                 &wifi_event_handler, NULL));
+
+    /* 创建首次连接超时定时器（60秒） */
+    const esp_timer_create_args_t connect_timer_args = {
+        .callback = connect_timeout_cb,
+        .name = "connect_timeout",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&connect_timer_args, &s_connect_timer));
+
+    /* 创建退避重连定时器 */
+    const esp_timer_create_args_t reconnect_timer_args = {
+        .callback = reconnect_timer_cb,
+        .name = "reconnect_backoff",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&reconnect_timer_args, &s_reconnect_timer));
+
     return ESP_OK;
 }
 
 esp_err_t app_wifi_start(void)
 {
-    const board_t *board = board_get_instance();
-    const wifi_ap_cfg_t *wifi_ap = &board->wifi_ap;
+    char ssid[33] = {0};
+    char password[65] = {0};
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    /* 尝试读取已保存的WiFi配置 */
+    esp_err_t ret = read_wifi_config(ssid, password);
 
-    wifi_config_t ap_config = {
-        .ap = {
-            .ssid_len = strlen(wifi_ap->ssid),
-            .channel = wifi_ap->channel,
-            .authmode = WIFI_AUTH_WPA2_PSK,
-            .max_connection = wifi_ap->max_conn,
-        },
-    };
-    strlcpy((char *)ap_config.ap.ssid, wifi_ap->ssid, sizeof(ap_config.ap.ssid));
-    strlcpy((char *)ap_config.ap.password, wifi_ap->password, sizeof(ap_config.ap.password));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_ERROR_CHECK(start_webserver());
-    app_event_set_bits(APP_EVENT_WIFI_CONFIG_ENTER);
-    ESP_LOGI(TAG, "WiFi started, AP: %s", wifi_ap->ssid);
+    if (ret == ESP_OK) {
+        /* 有保存的配置，先尝试连接 */
+        ESP_LOGI(TAG, "发现已保存的WiFi配置，尝试连接: %s", ssid);
+
+        wifi_config_t sta_config = {
+            .sta = {
+                .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+                .pmf_cfg = {
+                    .capable = true,
+                    .required = false,
+                },
+            },
+        };
+        strlcpy((char *)sta_config.sta.ssid, ssid, sizeof(sta_config.sta.ssid));
+        strlcpy((char *)sta_config.sta.password, password, sizeof(sta_config.sta.password));
+
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+        ESP_ERROR_CHECK(esp_wifi_start());
+
+        wifi_state.connecting = true;
+        snprintf(wifi_state.message, sizeof(wifi_state.message),
+                 "正在连接到 %s...", ssid);
+        app_event_set_bits(APP_EVENT_WIFI_CONNECTING);
+
+        /* 启动60秒连接超时定时器 */
+        start_connect_timer();
+    } else {
+        /* 无保存的配置，直接进入配网模式 */
+        ESP_LOGI(TAG, "无已保存的WiFi配置，进入配网模式");
+        enter_config_mode();
+    }
+
     return ESP_OK;
 }
 
 esp_err_t app_wifi_disconnect(void)
 {
+    s_was_connected = false;
+    s_reconnect_count = 0;
+    s_reconnect_interval_ms = RECONNECT_MIN_INTERVAL_MS;
+    stop_connect_timer();
+    stop_reconnect_timer();
     return esp_wifi_disconnect();
 }
 
@@ -458,9 +716,7 @@ esp_err_t app_wifi_get_mac(uint8_t *mac)
 
 esp_err_t app_wifi_stop_ap(void)
 {
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_start());
-    app_event_set_bits(APP_EVENT_WIFI_CONFIG_EXIT);
+    exit_config_mode();
     return ESP_OK;
 }
 
