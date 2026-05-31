@@ -66,17 +66,40 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 | `main/modules/event/app_event.c` | Event system: FreeRTOS EventGroup + observer pattern + Schedule (deferred callbacks) |
 | `main/modules/display/app_display.c` | Display hardware init (esp_lcd + esp_lvgl_port, Core 1, priority 1) |
 | `main/modules/display/app_font.c` | Font manager - two-layer strategy: built-in basic fallback + CBin runtime from assets partition |
-| `main/modules/display/ui/ui_manager.c` | Page manager - handles page switching and event-driven UI updates |
+| `main/modules/display/ui/ui_manager.c` | Page manager - three-layer container architecture, page switching, event dispatch |
 | `main/modules/display/ui/ui_home.c` | Home page UI (placeholder) |
 | `main/modules/display/ui/ui_wifi_config.c` | WiFi config guidance page (AP SSID/password/URL) |
+| `main/modules/sntp/app_sntp.c` | SNTP time sync (ntp.aliyun.com, auto-start on GOT_IP) |
 | `main/modules/wifi/app_wifi.c` | WiFi provisioning (AP+STA mode, auto-trigger, reconnection with exponential backoff) |
 | `main/resources/html/index.html` | WiFi provisioning web page |
 
 ### Init Sequence (main.c)
 
-Order matters: `NVS → event system → WiFi → display hardware → font manager → UI → main loop`
+Order matters: `NVS → event system → SNTP → WiFi → display hardware → font manager → UI → main loop`
 
 Font manager must init after display (LVGL core needed for `cbin_font_create`) and before UI (UI needs font pointers).
+
+### UI Page System (Three-Layer Container)
+
+```
+lv_screen_active()
+  └── sys_container（系统层，永不销毁）
+        ├── status_bar（WiFi 状态 + 时钟，始终可见）
+        └── page_container（页面层，承载当前功能页）
+              └── [各功能页的组件作为子对象]
+```
+
+- **sys_container**: 全屏容器，页面切换不影响系统层
+- **page_container**: `lv_obj_clean()` 一行清空旧页面，新页面在容器下创建
+- **页面接口**: `ui_page_interface_t` — 每个页面实现 `create(parent)` + 可选 `on_event(bits)`
+- **页面注册**: `s_pages[]` 数组，`ui_page_id_t` 枚举
+
+添加新页面只需三步：
+1. 创建 `ui_xxx.c/h`，实现 `ui_xxx_create(lv_obj_t *parent)`
+2. 在 `ui_page_id_t` 枚举加新 ID
+3. 在 `s_pages[]` 注册
+
+未来扩展聊天浮层时，在 `sys_container` 下加 `overlay_container` 层即可。
 
 ### Font System (Two-Layer)
 
@@ -88,7 +111,7 @@ Font manager must init after display (LVGL core needed for `cbin_font_create`) a
 
 ### Event System
 
-- **EventGroup** bits 0-9 for WiFi events, bit 23 for Schedule
+- **EventGroup** bits 0-9 for WiFi events, bit 10 for time sync, bit 23 for Schedule
 - **Observer pattern**: modules register handlers with bit masks via `app_event_register_handler()`
 - **Schedule**: `app_event_schedule(fn, arg)` queues deferred callbacks executed in main thread
 - Main loop dispatches events by priority order (WiFi first, Schedule last), non-exclusive (multiple bits can fire simultaneously)

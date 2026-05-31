@@ -9,23 +9,21 @@
 #ifndef __UI_HOME_H__
 #define __UI_HOME_H__
 
+#include "lvgl.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+
 /**
  * @brief 创建首页UI
+ * @param parent 页面容器，组件创建在 parent 下
  * @note 必须在 lvgl_port_lock() 保护下调用
  */
-void ui_home_create(void);
+void ui_home_create(lv_obj_t *parent);
 
 /**
- * @brief 销毁首页UI
- * @note 必须在 lvgl_port_lock() 保护下调用
+ * @brief 首页事件处理
+ * @param event_bits 当前触发的事件位
  */
-void ui_home_destroy(void);
-
-/**
- * @brief 更新首页时钟显示
- * @param time_str 时间字符串（如 "12:30"）
- * @note 必须在 lvgl_port_lock() 保护下调用
- */
-void ui_home_update_clock(const char *time_str);
+void ui_home_on_event(EventBits_t event_bits);
 
 #endif /* __UI_HOME_H__ */

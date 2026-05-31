@@ -12,31 +12,24 @@
 #include "app_font.h"
 #include "lvgl.h"
 
-/* 页面对象引用（用于 destroy 时清理） */
-static lv_obj_t *s_icon_label = NULL;
-static lv_obj_t *s_title_label = NULL;
-static lv_obj_t *s_hint_label = NULL;
-static lv_obj_t *s_wait_label = NULL;
-
 /**
  * @brief 创建WiFi配网引导页面
+ * @param parent 页面容器
  */
-void ui_wifi_config_create(void)
+void ui_wifi_config_create(lv_obj_t *parent)
 {
-    lv_obj_t *scr = lv_screen_active();
-
     /* WiFi 图标（居中，偏上，使用 Montserrat 40 的 FontAwesome 符号） */
-    s_icon_label = lv_label_create(scr);
-    lv_label_set_text(s_icon_label, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_font(s_icon_label, &lv_font_montserrat_40, 0);
-    lv_obj_set_style_text_color(s_icon_label, lv_color_hex(0x4A90D9), 0);
-    lv_obj_align(s_icon_label, LV_ALIGN_TOP_MID, 0, 35);
+    lv_obj_t *icon_label = lv_label_create(parent);
+    lv_label_set_text(icon_label, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_font(icon_label, &lv_font_montserrat_40, 0);
+    lv_obj_set_style_text_color(icon_label, lv_color_hex(0x4A90D9), 0);
+    lv_obj_align(icon_label, LV_ALIGN_TOP_MID, 0, 35);
 
     /* "配网模式" 标题（使用字体管理器提供的 CJK 字体） */
-    s_title_label = lv_label_create(scr);
-    lv_label_set_text(s_title_label, "\xe9\x85\x8d\xe7\xbd\x91\xe6\xa8\xa1\xe5\xbc\x8f"); /* 配网模式 */
-    lv_obj_set_style_text_font(s_title_label, app_font_get_text(), 0);
-    lv_obj_align(s_title_label, LV_ALIGN_TOP_MID, 0, 85);
+    lv_obj_t *title_label = lv_label_create(parent);
+    lv_label_set_text(title_label, "\xe9\x85\x8d\xe7\xbd\x91\xe6\xa8\xa1\xe5\xbc\x8f"); /* 配网模式 */
+    lv_obj_set_style_text_font(title_label, app_font_get_text(), 0);
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 85);
 
     /* 引导文本：动态拼接AP名称、密码、URL */
     const char *ap_ssid = app_wifi_get_ap_ssid();
@@ -51,40 +44,17 @@ void ui_wifi_config_create(void)
         "http://192.168.4.1",
         ap_ssid, ap_pwd);
 
-    s_hint_label = lv_label_create(scr);
-    lv_label_set_text(s_hint_label, hint_text);
-    lv_label_set_long_mode(s_hint_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(s_hint_label, app_font_get_text(), 0);
-    lv_obj_set_width(s_hint_label, 220);
-    lv_obj_align(s_hint_label, LV_ALIGN_TOP_MID, 0, 115);
+    lv_obj_t *hint_label = lv_label_create(parent);
+    lv_label_set_text(hint_label, hint_text);
+    lv_label_set_long_mode(hint_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(hint_label, app_font_get_text(), 0);
+    lv_obj_set_width(hint_label, 220);
+    lv_obj_align(hint_label, LV_ALIGN_TOP_MID, 0, 115);
 
     /* 底部等待提示 */
-    s_wait_label = lv_label_create(scr);
-    lv_label_set_text(s_wait_label, "\xe2\x97\x8f \xe7\xad\x89\xe5\xbe\x85\xe9\x85\x8d\xe7\xbd\x91\xe4\xb8\xad..."); /* ● 等待配网中... */
-    lv_obj_set_style_text_font(s_wait_label, app_font_get_text(), 0);
-    lv_obj_set_style_text_color(s_wait_label, lv_color_hex(0x999999), 0);
-    lv_obj_align(s_wait_label, LV_ALIGN_TOP_MID, 0, 280);
-}
-
-/**
- * @brief 销毁WiFi配网引导页面
- */
-void ui_wifi_config_destroy(void)
-{
-    if (s_icon_label) {
-        lv_obj_delete(s_icon_label);
-        s_icon_label = NULL;
-    }
-    if (s_title_label) {
-        lv_obj_delete(s_title_label);
-        s_title_label = NULL;
-    }
-    if (s_hint_label) {
-        lv_obj_delete(s_hint_label);
-        s_hint_label = NULL;
-    }
-    if (s_wait_label) {
-        lv_obj_delete(s_wait_label);
-        s_wait_label = NULL;
-    }
+    lv_obj_t *wait_label = lv_label_create(parent);
+    lv_label_set_text(wait_label, "\xe2\x97\x8f \xe7\xad\x89\xe5\xbe\x85\xe9\x85\x8d\xe7\xbd\x91\xe4\xb8\xad..."); /* ● 等待配网中... */
+    lv_obj_set_style_text_font(wait_label, app_font_get_text(), 0);
+    lv_obj_set_style_text_color(wait_label, lv_color_hex(0x999999), 0);
+    lv_obj_align(wait_label, LV_ALIGN_TOP_MID, 0, 280);
 }

@@ -9,17 +9,14 @@
 #ifndef __UI_WIFI_CONFIG_H__
 #define __UI_WIFI_CONFIG_H__
 
+#include "lvgl.h"
+
 /**
  * @brief 创建WiFi配网引导页面
+ * @param parent 页面容器，组件创建在 parent 下
  * @note 必须在 lvgl_port_lock() 保护下调用，
  *       从 app_wifi 获取 AP SSID 和密码动态生成引导文本
  */
-void ui_wifi_config_create(void);
-
-/**
- * @brief 销毁WiFi配网引导页面
- * @note 必须在 lvgl_port_lock() 保护下调用
- */
-void ui_wifi_config_destroy(void);
+void ui_wifi_config_create(lv_obj_t *parent);
 
 #endif /* __UI_WIFI_CONFIG_H__ */
