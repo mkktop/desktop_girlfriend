@@ -26,6 +26,7 @@ static const board_t s_board = {
         .spi_mode = 0,
         .pixel_clock_hz = 80 * 1000 * 1000,
         .invert_color = true,
+        .use_io_expander = false,
     },
 
     /* WiFi 配网参数 */

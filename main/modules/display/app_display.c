@@ -24,6 +24,7 @@
 #include "misc/cache/instance/lv_image_cache.h"
 #include "esp_lvgl_port.h"
 #include "board.h"
+#include "xl9555.h"
 #include "app_display.h"
 
 #define TAG "app_display"
@@ -66,23 +67,44 @@ void app_display_init(void)
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(lcd->spi_host, &io_config, &panel_io));
     ESP_LOGI(TAG, "Panel IO created");
 
-    /* 3. 创建ST7789 LCD面板（ESP-IDF内置驱动） */
+    /* 3. 初始化 IO 扩展芯片（如需要） */
+    if (lcd->use_io_expander) {
+        ESP_LOGI(TAG, "Initializing XL9555 IO expander...");
+        if (xl9555_init(lcd->i2c_sda_pin, lcd->i2c_scl_pin, lcd->i2c_addr,
+                         lcd->expander_output_mask) != 0) {
+            ESP_LOGE(TAG, "Failed to init XL9555 IO expander");
+        }
+    }
+
+    /* 4. 创建ST7789 LCD面板（ESP-IDF内置驱动） */
     esp_lcd_panel_handle_t panel = NULL;
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = lcd->pin_rst,
+        .reset_gpio_num = lcd->use_io_expander ? GPIO_NUM_NC : lcd->pin_rst,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(panel_io, &panel_config, &panel));
     ESP_LOGI(TAG, "ST7789 panel created");
 
-    /* 4. 初始化LCD面板 */
-    ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
+    /* 5. 硬件复位 LCD */
+    if (lcd->use_io_expander) {
+        /* 通过 IO 扩展芯片复位 LCD */
+        xl9555_pin_write(lcd->expander_rst_pin, 0);
+        vTaskDelay(pdMS_TO_TICKS(20));
+        xl9555_pin_write(lcd->expander_rst_pin, 1);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        ESP_LOGI(TAG, "LCD reset via IO expander");
+    } else {
+        /* 直接 GPIO 复位 */
+        ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
+    }
+
+    /* 6. 初始化LCD面板 */
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
     ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel, lcd->invert_color));
     ESP_LOGI(TAG, "LCD panel initialized");
 
-    /* 5. 清屏为白色（避免上电瞬间花屏） */
+    /* 7. 清屏为白色（避免上电瞬间花屏） */
     uint16_t *line_buf = heap_caps_malloc(lcd->width * sizeof(uint16_t), MALLOC_CAP_DMA);
     if (line_buf) {
         memset(line_buf, 0xFF, lcd->width * sizeof(uint16_t));
@@ -92,10 +114,15 @@ void app_display_init(void)
         free(line_buf);
     }
 
-    /* 6. 开启显示和背光 */
+    /* 8. 开启显示和背光 */
     esp_lcd_panel_disp_on_off(panel, true);
-    gpio_set_direction(lcd->pin_backlight, GPIO_MODE_OUTPUT);
-    gpio_set_level(lcd->pin_backlight, 1);
+    if (lcd->use_io_expander) {
+        xl9555_pin_write(lcd->expander_bl_pin, 1);
+        ESP_LOGI(TAG, "Backlight on via IO expander");
+    } else {
+        gpio_set_direction(lcd->pin_backlight, GPIO_MODE_OUTPUT);
+        gpio_set_level(lcd->pin_backlight, 1);
+    }
 
     /* 7. 初始化LVGL核心库 */
     lv_init();

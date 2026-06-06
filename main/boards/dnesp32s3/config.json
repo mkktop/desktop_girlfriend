@@ -1,0 +1,13 @@
+{
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "DNESP32S3",
+            "sdkconfig_append": [
+                "CONFIG_BOARD_TYPE_DNESP32S3=y",
+                "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions_16mb.csv\""
+            ]
+        }
+    ]
+}

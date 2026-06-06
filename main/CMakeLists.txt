@@ -1,11 +1,14 @@
 # 板卡选择：根据 Kconfig 选择的板卡编译对应目录的 board.c
 if(CONFIG_BOARD_TYPE_DESKTOP_GIRLFRIEND_V1)
     set(BOARD_DIR "desktop_girlfriend_V1")
+elseif(CONFIG_BOARD_TYPE_DNESP32S3)
+    set(BOARD_DIR "dnesp32s3")
 endif()
 
 idf_component_register(
     SRCS "main.c"
          "boards/${BOARD_DIR}/board.c"
+         "boards/common/xl9555.c"
          "modules/event/app_event.c"
          "modules/display/app_display.c"
          "modules/display/app_font.c"
@@ -16,7 +19,7 @@ idf_component_register(
          "modules/display/ui/ui_wifi_config.c"
          "modules/wifi/app_wifi.c"
          "modules/sntp/app_sntp.c"
-    INCLUDE_DIRS "." "boards" "modules/event" "modules/display" "modules/display/gif" "modules/display/ui" "modules/wifi" "modules/sntp"
+    INCLUDE_DIRS "." "boards" "boards/common" "modules/event" "modules/display" "modules/display/gif" "modules/display/ui" "modules/wifi" "modules/sntp"
     EMBED_FILES "resources/html/index.html"
     REQUIRES esp_partition esp_psram esp_wifi nvs_flash esp_http_server esp_netif esp_timer json esp_event
 )

@@ -1,0 +1,10 @@
+# Name,   Type, SubType, Offset,   Size,      Flags
+# 16MB Flash OTA 双分区布局
+# factory(3MB) + ota_0(3MB) + ota_1(3MB) + otadata + assets(~6.9MB)
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  0x300000,
+otadata,  data, ota,     0x310000, 0x2000,
+ota_0,    app,  ota_0,   0x320000, 0x300000,
+ota_1,    app,  ota_1,   0x620000, 0x300000,
+assets,   data, spiffs,  0x920000, 0x6E0000,

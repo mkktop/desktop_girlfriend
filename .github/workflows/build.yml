@@ -110,7 +110,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: desktop_girlfriend_${{ matrix.full_name }}_${{ github.sha }}
+          name: ${{ matrix.full_name }}
           path: build/merged-binary.bin
           if-no-files-found: error
 
@@ -132,10 +132,11 @@ jobs:
       - name: Rename binaries for release
         run: |
           mkdir -p release_assets
+          VERSION="${GITHUB_REF_NAME}"
           for dir in artifacts/*/; do
-            name=$(basename "$dir")
+            board_name=$(basename "$dir")
             if [ -f "$dir/merged-binary.bin" ]; then
-              cp "$dir/merged-binary.bin" "release_assets/${name}.bin"
+              cp "$dir/merged-binary.bin" "release_assets/${board_name}_${VERSION}.bin"
             fi
           done
           ls -la release_assets/

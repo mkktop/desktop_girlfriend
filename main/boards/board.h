@@ -25,8 +25,8 @@ typedef struct {
     int pin_mosi;                    /* SPI MOSI 引脚 */
     int pin_cs;                      /* SPI 片选引脚 */
     int pin_dc;                      /* 数据/命令引脚 */
-    int pin_rst;                     /* 复位引脚 */
-    int pin_backlight;               /* 背光控制引脚 */
+    int pin_rst;                     /* 复位引脚（-1 表示使用 IO 扩展） */
+    int pin_backlight;               /* 背光控制引脚（-1 表示使用 IO 扩展） */
 
     /* 显示参数 */
     int width;                       /* 屏幕宽度（像素） */
@@ -35,6 +35,15 @@ typedef struct {
     int spi_mode;                    /* SPI 模式（0-3） */
     uint32_t pixel_clock_hz;         /* 像素时钟频率（Hz） */
     bool invert_color;               /* 是否反色显示 */
+
+    /* IO 扩展芯片配置（可选，use_io_expander=true 时生效） */
+    bool use_io_expander;            /* RST/背光是否通过 IO 扩展芯片控制 */
+    uint16_t expander_rst_pin;       /* IO 扩展芯片上的 RST 引脚 bitmask */
+    uint16_t expander_bl_pin;        /* IO 扩展芯片上的背光引脚 bitmask */
+    uint16_t expander_output_mask;   /* IO 扩展芯片输出引脚掩码（需为输出的引脚置1） */
+    int i2c_sda_pin;                 /* IO 扩展芯片 I2C SDA 引脚 */
+    int i2c_scl_pin;                 /* IO 扩展芯片 I2C SCL 引脚 */
+    uint8_t i2c_addr;                /* IO 扩展芯片 7 位 I2C 地址 */
 } lcd_cfg_t;
 
 /**

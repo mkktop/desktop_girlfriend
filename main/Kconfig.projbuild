@@ -4,4 +4,7 @@ choice BOARD_TYPE
 
     config BOARD_TYPE_DESKTOP_GIRLFRIEND_V1
         bool "desktop_girlfriend_V1"
+
+    config BOARD_TYPE_DNESP32S3
+        bool "DNESP32S3"
 endchoice
