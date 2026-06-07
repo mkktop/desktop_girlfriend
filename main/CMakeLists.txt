@@ -21,8 +21,9 @@ idf_component_register(
          "modules/sntp/app_sntp.c"
          "modules/audio/app_audio.c"
          "modules/audio/app_audio_codec.c"
+         "modules/audio/ogg_demuxer.c"
     INCLUDE_DIRS "." "boards" "boards/common" "modules/event" "modules/display" "modules/display/gif" "modules/display/ui" "modules/wifi" "modules/sntp" "modules/audio"
-    EMBED_FILES "resources/html/index.html"
+    EMBED_FILES "resources/html/index.html" "resources/sounds/success.ogg" "resources/sounds/wifi_config.ogg" "resources/sounds/wifi_connected.ogg"
     REQUIRES esp_partition esp_psram esp_wifi nvs_flash esp_http_server esp_netif esp_timer json esp_event
 )
 

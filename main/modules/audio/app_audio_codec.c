@@ -17,7 +17,6 @@
 #include "freertos/task.h"
 #include "xl9555.h"
 #include "es8388_codec.h"
-#include <math.h>
 
 #define TAG "audio_codec"
 
@@ -40,7 +39,7 @@ static esp_codec_dev_handle_t s_input_dev = NULL;
 static bool s_initialized = false;
 static bool s_output_opened = false;
 static bool s_input_opened = false;
-static int s_volume = 70;             /* 默认音量 70% */
+static int s_volume = 100;            /* 默认音量 100% */
 static float s_gain = 24.0f;          /* 默认输入增益 24dB */
 static int s_pa_pin = -1;             /* GPIO 功放引脚 */
 static uint16_t s_pa_expander_pin = 0; /* IO 扩展功放引脚 */
@@ -394,49 +393,4 @@ bool app_audio_codec_is_initialized(void)
 esp_codec_dev_handle_t app_audio_codec_get_output_dev(void)
 {
     return s_output_dev;
-}
-
-/**
- * @brief 播放启动提示音
- * @note 使用正常 esp_codec_dev 流程播放一个短促的提示音，确认音频硬件正常
- */
-void app_audio_codec_diagnostic(void)
-{
-    if (!s_initialized) {
-        ESP_LOGE(TAG, "Codec not initialized, cannot play startup tone");
-        return;
-    }
-
-    /* 打开输出 */
-    const board_t *board = board_get_instance();
-    if (app_audio_codec_open_output(board->audio.output_sample_rate) != 0) {
-        ESP_LOGE(TAG, "Failed to open audio output");
-        return;
-    }
-
-    /* 生成 880Hz 短提示音（0.2 秒，mono） */
-    int sample_rate = board->audio.output_sample_rate;
-    int total_samples = sample_rate * 2 / 10;  /* 0.2 秒 */
-    int buf_size = total_samples * sizeof(int16_t);
-    int16_t *tone = heap_caps_malloc(buf_size, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-    if (tone) {
-        float amplitude = 0.25f * 32767.0f;
-        int fade = sample_rate * 10 / 1000;
-        for (int i = 0; i < total_samples; i++) {
-            float t = (float)i / sample_rate;
-            int16_t s = (int16_t)(amplitude * sinf(2.0f * (float)M_PI * 880.0f * t));
-            if (i < fade) s = (int16_t)((float)s * (float)i / (float)fade);
-            else if (i > total_samples - fade) s = (int16_t)((float)s * (float)(total_samples - i) / (float)fade);
-            tone[i] = s;
-        }
-        esp_codec_dev_write(s_output_dev, (void *)tone, buf_size);
-        free(tone);
-    }
-
-    /* 等待播放完成 */
-    vTaskDelay(pdMS_TO_TICKS(400));
-
-    /* 关闭输出 */
-    app_audio_codec_close_output();
-    ESP_LOGI(TAG, "Startup tone played");
 }

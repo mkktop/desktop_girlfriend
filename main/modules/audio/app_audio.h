@@ -11,6 +11,7 @@
 #define __APP_AUDIO_H__
 
 #include <stdint.h>
+#include <stddef.h>
 #include <stdbool.h>
 
 /**
@@ -27,6 +28,16 @@ void app_audio_init(void);
  * @return 0 成功，-1 失败
  */
 int app_audio_play_tone(int freq_hz, int duration_ms);
+
+/**
+ * @brief 播放 OGG/Opus 提示音
+ * @param ogg_data 内嵌 OGG 文件数据指针
+ * @param ogg_len 数据长度（字节）
+ * @return 0 成功，-1 失败
+ * @note 数据来自 EMBED_FILES 编译嵌入的 OGG 文件，
+ *       通过 OGG 解复用器提取 Opus 包，解码为 PCM 后播放
+ */
+int app_audio_play_sound(const uint8_t *ogg_data, size_t ogg_len);
 
 /**
  * @brief 设置输出音量

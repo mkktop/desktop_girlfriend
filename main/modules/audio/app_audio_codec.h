@@ -95,10 +95,4 @@ bool app_audio_codec_is_initialized(void);
  */
 esp_codec_dev_handle_t app_audio_codec_get_output_dev(void);
 
-/**
- * @brief 播放启动提示音
- * @note 上电时播放一个短促的提示音，确认音频硬件正常工作
- */
-void app_audio_codec_diagnostic(void);
-
 #endif /* __APP_AUDIO_CODEC_H__ */

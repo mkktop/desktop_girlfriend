@@ -46,7 +46,7 @@ void app_main(void)
     app_wifi_init();
     app_wifi_start();
 
-    /* 5. 初始化显示硬件（LVGL 核心初始化） */
+    /* 5. 初始化显示硬件（LVGL 核心初始化，包含 XL9555 IO 扩展芯片） */
     app_display_init();
 
     /* 6. 初始化字体管理器（内置字体 + 尝试加载 CBin 运行时字体） */
@@ -55,7 +55,7 @@ void app_main(void)
     /* 7. 初始化 UI（在显示硬件和字体之后） */
     ui_manager_init();
 
-    /* 8. 初始化音频（编解码芯片 + 播放测试音） */
+    /* 8. 初始化音频（编解码芯片 + 播放启动提示音，依赖 XL9555） */
     app_audio_init();
 
     /* 9. 提升主任务优先级（确保事件及时响应） */
