@@ -148,3 +148,8 @@ bool xl9555_is_initialized(void)
 {
     return s_initialized;
 }
+
+i2c_master_bus_handle_t xl9555_get_i2c_bus(void)
+{
+    return s_i2c_bus;
+}

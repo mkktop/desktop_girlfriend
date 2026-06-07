@@ -3,7 +3,7 @@
  * @brief 应用入口
  * @author mkk
  * @date 2026-05-30
- * @note 初始化顺序：NVS → 事件系统 → SNTP → WiFi → 显示硬件 → 字体 → UI，
+ * @note 初始化顺序：NVS → 事件系统 → SNTP → WiFi → 显示硬件 → 字体 → UI → 音频，
  *       主线程以优先级10运行 EventGroup 驱动的事件循环，
  *       按优先级顺序处理各类事件
  */
@@ -17,6 +17,7 @@
 #include "modules/display/app_display.h"
 #include "modules/display/app_font.h"
 #include "modules/display/ui/ui_manager.h"
+#include "modules/audio/app_audio.h"
 #include "nvs_flash.h"
 #include "esp_log.h"
 
@@ -54,11 +55,14 @@ void app_main(void)
     /* 7. 初始化 UI（在显示硬件和字体之后） */
     ui_manager_init();
 
-    /* 8. 提升主任务优先级（确保事件及时响应） */
+    /* 8. 初始化音频（编解码芯片 + 播放测试音） */
+    app_audio_init();
+
+    /* 9. 提升主任务优先级（确保事件及时响应） */
     vTaskPrioritySet(NULL, 10);
     ESP_LOGI(TAG, "Main task priority set to 10");
 
-    /* 9. 主事件循环（按优先级顺序处理，非 else-if，可同时处理多个位） */
+    /* 10. 主事件循环（按优先级顺序处理，非 else-if，可同时处理多个位） */
     const EventBits_t all_bits = APP_EVENT_ALL_BITS | APP_EVENT_SCHEDULE_PENDING;
     while (1) {
         EventBits_t bits = app_event_wait(all_bits, true, portMAX_DELAY);

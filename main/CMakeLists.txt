@@ -19,7 +19,9 @@ idf_component_register(
          "modules/display/ui/ui_wifi_config.c"
          "modules/wifi/app_wifi.c"
          "modules/sntp/app_sntp.c"
-    INCLUDE_DIRS "." "boards" "boards/common" "modules/event" "modules/display" "modules/display/gif" "modules/display/ui" "modules/wifi" "modules/sntp"
+         "modules/audio/app_audio.c"
+         "modules/audio/app_audio_codec.c"
+    INCLUDE_DIRS "." "boards" "boards/common" "modules/event" "modules/display" "modules/display/gif" "modules/display/ui" "modules/wifi" "modules/sntp" "modules/audio"
     EMBED_FILES "resources/html/index.html"
     REQUIRES esp_partition esp_psram esp_wifi nvs_flash esp_http_server esp_netif esp_timer json esp_event
 )

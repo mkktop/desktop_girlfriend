@@ -42,6 +42,14 @@ static const board_t s_board = {
         .builtin_text_font = "font_puhui_basic_16_4",
         .cbin_text_font = "font_puhui_common_16_4.bin",
     },
+
+    /* 音频配置（暂无音频硬件） */
+    .audio = {
+        .i2s_port = -1,
+        .pa_pin = -1,
+        .pa_expander_pin = 0,
+        .pa_active_low = false,
+    },
 };
 
 const board_t *board_get_instance(void)

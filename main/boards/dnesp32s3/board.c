@@ -9,8 +9,11 @@
 
 #include "board.h"
 #include "driver/spi_common.h"
+#include "driver/i2s_std.h"
+#include "es8388_codec.h"
 
 /* XL9555 IO 扩展引脚定义（bitmask） */
+#define XL9555_SPK_EN_PIN      0x0004   /* 功放 MD8002A 使能引脚 P02，低电平有效 */
 #define XL9555_SLCD_RST_PIN    0x0400   /* SPI_LCD 复位引脚 P12 */
 #define XL9555_SLCD_PWR_PIN    0x0800   /* SPI_LCD 背光引脚 P13 */
 
@@ -36,7 +39,7 @@ static const board_t s_board = {
         .use_io_expander = true,
         .expander_rst_pin = XL9555_SLCD_RST_PIN,
         .expander_bl_pin = XL9555_SLCD_PWR_PIN,
-        .expander_output_mask = XL9555_SLCD_RST_PIN | XL9555_SLCD_PWR_PIN,
+        .expander_output_mask = XL9555_SPK_EN_PIN | XL9555_SLCD_RST_PIN | XL9555_SLCD_PWR_PIN,
         .i2c_sda_pin = 41,
         .i2c_scl_pin = 42,
         .i2c_addr = 0x20,
@@ -54,6 +57,22 @@ static const board_t s_board = {
     .font = {
         .builtin_text_font = "font_puhui_basic_16_4",
         .cbin_text_font = "font_puhui_common_16_4.bin",
+    },
+
+    /* 音频配置（ES8388 编解码芯片 + MD8002A 功放） */
+    .audio = {
+        .i2s_port = I2S_NUM_0,
+        .pin_mclk = 3,
+        .pin_bclk = 46,
+        .pin_ws = 9,
+        .pin_dout = 10,                     /* ESP32 → ES8388 DAC（播放） */
+        .pin_din = 14,                      /* ES8388 ADC → ESP32（录音） */
+        .input_sample_rate = 24000,
+        .output_sample_rate = 24000,        /* 全双工使用统一采样率 */
+        .codec_addr = ES8388_CODEC_DEFAULT_ADDR,
+        .pa_pin = -1,                       /* 不使用直接 GPIO */
+        .pa_expander_pin = 0x0004,          /* XL9555 P02，低电平有效 */
+        .pa_active_low = true,
     },
 };
 

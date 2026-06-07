@@ -48,15 +48,21 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 |------|---------|
 | `main/boards/board.h` | 板卡配置结构体（`board_t`）+ 单例接口（`board_get_instance()`） |
 | `main/boards/<board_name>/board.c` | 各板卡的具体引脚和参数配置 |
-| `main/boards/common/` | 板卡共享驱动（背光、按钮等） |
+| `main/boards/<board_name>/config.json` | CI 构建变体定义（target、sdkconfig 追加项） |
+| `main/boards/common/` | 板卡共享驱动（XL9555 IO 扩展、背光、按钮等） |
 | `main/Kconfig.projbuild` | 板卡选择菜单（`menuconfig` 中可见） |
 
 `board_t` 通过嵌套结构体分组外设配置：`lcd_cfg_t lcd`、`wifi_ap_cfg_t wifi_ap`、`font_cfg_t font`，扩展时只需添加新的 `xxx_cfg_t`。
 
+`lcd_cfg_t` 支持两种 RST/背光控制模式：
+- **直接 GPIO**（`use_io_expander = false`）：引脚直接连接 MCU
+- **IO 扩展芯片**（`use_io_expander = true`）：通过 XL9555/TCA9555 I2C IO 扩展间接控制
+
 添加新板卡只需：
 1. 创建 `main/boards/<新板卡名>/board.c`，填充 `board_t` 结构体
-2. 在 `Kconfig.projbuild` 添加选项
-3. 在 `main/CMakeLists.txt` 添加 `elseif` 分支
+2. 创建 `main/boards/<新板卡名>/config.json`，定义 CI 构建变体
+3. 在 `Kconfig.projbuild` 添加选项
+4. 在 `main/CMakeLists.txt` 添加 `elseif` 分支
 
 ### Module Structure
 
@@ -66,8 +72,10 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 | `main/modules/event/app_event.c` | Event system: FreeRTOS EventGroup + observer pattern + Schedule (deferred callbacks) |
 | `main/modules/display/app_display.c` | Display hardware init (esp_lcd + esp_lvgl_port, Core 1, priority 1) |
 | `main/modules/display/app_font.c` | Font manager - two-layer strategy: built-in basic fallback + CBin runtime from assets partition |
+| `main/modules/display/gif/gifdec.c` | Pure C GIF89a decoder (replaces buggy lv_gif, fixes frame corruption) |
+| `main/modules/display/gif/app_gif.c` | GIF animation wrapper for LVGL |
 | `main/modules/display/ui/ui_manager.c` | Page manager - three-layer container architecture, page switching, event dispatch |
-| `main/modules/display/ui/ui_home.c` | Home page UI (placeholder) |
+| `main/modules/display/ui/ui_home.c` | Home page UI (GIF animated emoji) |
 | `main/modules/display/ui/ui_wifi_config.c` | WiFi config guidance page (AP SSID/password/URL) |
 | `main/modules/sntp/app_sntp.c` | SNTP time sync (ntp.aliyun.com, auto-start on GOT_IP) |
 | `main/modules/wifi/app_wifi.c` | WiFi provisioning (AP+STA mode, auto-trigger, reconnection with exponential backoff) |
@@ -118,7 +126,11 @@ lv_screen_active()
 
 ### Partition Table
 
-Current 8MB layout: `nvs (24KB) → phy_init (4KB) → factory (3MB app) → assets (4.9MB)`. Changing to 16MB for OTA requires updating `partitions.csv` to dual-OTA layout + `sdkconfig` FLASHSIZE setting — no code changes needed.
+**8MB 布局**（`partitions.csv`）：`nvs (24KB) → phy_init (4KB) → factory (3MB app) → assets (4.9MB)`
+
+**16MB OTA 布局**（`partitions_16mb.csv`）：`nvs → phy_init → factory (3MB) → otadata → ota_0 (3MB) → ota_1 (3MB) → assets (~6.9MB)`
+
+16MB 板卡通过 `config.json` 的 `sdkconfig_append` 指定分区表，无需改代码。
 
 ### Display Stack
 
@@ -127,10 +139,24 @@ Current 8MB layout: `nvs (24KB) → phy_init (4KB) → factory (3MB app) → ass
 - **SPI**: `SPI2_HOST` @ 80MHz, DMA auto, polling mode
 - **Buffer**: Partial render, `width * 20` pixels, single buffer, DMA capable
 - **Thread Safety**: `lvgl_port_lock()` / `lvgl_port_unlock()` for cross-task LVGL access
+- **IO 扩展模式**: `use_io_expander = true` 时，先初始化 XL9555，再通过 I2C 控制 RST/背光
 
 ### WiFi Provisioning
 
 AP config (SSID prefix, password, channel) is defined in board config. AP SSID is dynamically generated: `prefix + MAC last 4 hex chars`. Auto-provisioning: tries saved WiFi first, 60s timeout → config mode. Reconnection: infinite retry with exponential backoff (10s→300s cap) after initial provisioning. HTTP endpoints: `/` `/scan` `/connect` `/disconnect` `/status`.
+
+### CI/CD
+
+GitHub Actions 两阶段流水线（`.github/workflows/build.yml`）：
+
+- **触发条件**：`v*` tag 推送（编译 + Release）、PR 到 main（仅编译验证）
+- **prepare**：扫描 `main/boards/*/config.json` 生成构建矩阵，PR 时按变更文件筛选受影响板卡
+- **build**：矩阵构建，每个板卡用 `release.py` 编译 + merge-bin
+- **release**：仅 tag 触发，产物命名 `板卡名_v版本号.bin`，通过 `softprops/action-gh-release` 发布
+
+本地多板卡编译：`python scripts/release.py all`
+
+版本号在根 `CMakeLists.txt` 的 `set(PROJECT_VER "x.y.z")`，发版流程：改版本号 → 提交 → `git tag vX.Y.Z` → `git push --tags`
 
 ## Code Conventions
 

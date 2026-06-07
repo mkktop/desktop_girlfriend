@@ -15,6 +15,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "driver/i2c_master.h"
 
 /**
  * @brief 初始化 XL9555 IO 扩展芯片
@@ -46,5 +47,12 @@ int xl9555_pin_read(uint16_t pin);
  * @return true 已初始化
  */
 bool xl9555_is_initialized(void);
+
+/**
+ * @brief 获取 XL9555 使用的 I2C 总线句柄
+ * @return I2C 总线句柄，未初始化时返回 NULL
+ * @note 用于与其他 I2C 器件（如 ES8388）共享同一总线
+ */
+i2c_master_bus_handle_t xl9555_get_i2c_bus(void);
 
 #endif /* __XL9555_H__ */

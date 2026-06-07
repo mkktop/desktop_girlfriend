@@ -22,7 +22,7 @@
  * Bit 6-7:   WiFi 操作状态
  * Bit 8-9:   配网事件
  * Bit 10-11: 网络/应用事件
- * Bit 12-15: 音频事件（未来）
+ * Bit 12-15: 音频事件
  * Bit 16-19: AI 对话事件（未来）
  * Bit 20-22: 系统事件（未来）
  * Bit 23:    SCHEDULE_PENDING（内部使用）
@@ -42,6 +42,10 @@
 
 /* 网络/应用事件 */
 #define APP_EVENT_TIME_SYNCED         (1U << 10) /* SNTP 时间同步完成 */
+
+/* 音频事件 */
+#define APP_EVENT_AUDIO_OUTPUT_IDLE   (1U << 12) /* 播放完成，输出空闲 */
+#define APP_EVENT_AUDIO_INPUT_READY   (1U << 13) /* 录音数据就绪 */
 
 /* 内部：延迟回调队列就绪 */
 #define APP_EVENT_SCHEDULE_PENDING (1U << 23)

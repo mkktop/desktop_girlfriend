@@ -19,6 +19,26 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 0.5.3
+  espressif/esp_audio_codec:
+    component_hash: af4663830bc73eca58febcc34a976d003465e78ed57458aa00a14b231e392ca1
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 2.4.1
+  espressif/esp_codec_dev:
+    component_hash: 896c67360ae1f8dedaf8a53dfe48c015317fa455f061a5165307892296990028
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.5.10
   espressif/esp_lvgl_port:
     component_hash: b6360960f47b6776462e7092861b3ea66477ffb762a01baa0aecbb3d74cd50f4
     dependencies:
@@ -50,7 +70,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.4.4
+    version: 5.5.4
   lvgl/lvgl:
     component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
     dependencies: []
@@ -60,9 +80,11 @@ dependencies:
     version: 9.5.0
 direct_dependencies:
 - 78/xiaozhi-fonts
+- espressif/esp_audio_codec
+- espressif/esp_codec_dev
 - espressif/esp_lvgl_port
 - espressif/esp_mmap_assets
 - lvgl/lvgl
-manifest_hash: db622573eec65d33133d0236171efb99e4be793f753e3d9a76fbd713e1c6dd81
+manifest_hash: 29d08bb17a07c950bb69369d7d88f1d97cc9d2cef14d2e6ab8ffb4041f8e72cf
 target: esp32s3
 version: 2.0.0

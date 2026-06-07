@@ -67,6 +67,34 @@ typedef struct {
 } font_cfg_t;
 
 /**
+ * @brief 音频 I2S 编解码配置
+ * @note 描述 I2S 引脚、采样率、编解码芯片参数，
+ *       适用于 ES8388、ES8311 等 I2S 音频芯片，
+ *       i2s_port 填 -1 表示该板卡无音频硬件
+ */
+typedef struct {
+    /* I2S 数据引脚 */
+    int i2s_port;                    /* I2S 端口号（I2S_NUM_0 / I2S_NUM_1，-1 无音频） */
+    int pin_mclk;                    /* MCLK 引脚（-1 表示不使用） */
+    int pin_bclk;                    /* BCLK（SCK）引脚 */
+    int pin_ws;                      /* WS（LRCK）引脚 */
+    int pin_dout;                    /* DOUT（ESP32 → Codec DAC，播放）引脚 */
+    int pin_din;                     /* DIN（Codec ADC → ESP32，录音）引脚 */
+
+    /* 采样率 */
+    int input_sample_rate;           /* ADC 采样率（如 16000） */
+    int output_sample_rate;          /* DAC 采样率（如 24000） */
+
+    /* 编解码芯片控制 */
+    uint8_t codec_addr;              /* 编解码芯片 I2C 地址 */
+
+    /* 功放使能（GPIO 和 IO 扩展二选一） */
+    int pa_pin;                      /* 直接 GPIO 功放引脚（-1 不使用） */
+    uint16_t pa_expander_pin;        /* IO 扩展芯片功放引脚 bitmask（0 不使用） */
+    bool pa_active_low;              /* 功放极性：true=低电平开启 */
+} audio_i2s_cfg_t;
+
+/**
  * @brief 板卡配置结构体
  * @note 各板卡通过填充此结构体来适配不同硬件，
  *       外设配置通过嵌套结构体分组，扩展时只需添加新的 cfg_t
@@ -79,9 +107,9 @@ typedef struct {
     lcd_cfg_t lcd;                   /* LCD 显示配置 */
     wifi_ap_cfg_t wifi_ap;           /* WiFi 配网参数 */
     font_cfg_t font;                 /* 字体配置 */
+    audio_i2s_cfg_t audio;           /* 音频配置（i2s_port=-1 表示无音频） */
 
     /* 未来扩展预留：
-     * audio_i2s_cfg_t audio;        // 音频 I2S 配置
      * touch_cfg_t touch;            // 触摸屏配置
      * button_cfg_t button;          // 按钮配置
      * power_cfg_t power;            // 电源管理配置
