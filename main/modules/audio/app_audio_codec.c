@@ -41,6 +41,7 @@ static bool s_output_opened = false;
 static bool s_input_opened = false;
 static int s_volume = 100;            /* 默认音量 100% */
 static float s_gain = 24.0f;          /* 默认输入增益 24dB */
+static audio_codec_type_t s_codec_type = AUDIO_CODEC_NONE; /* 当前编解码芯片类型 */
 static int s_pa_pin = -1;             /* GPIO 功放引脚 */
 static uint16_t s_pa_expander_pin = 0; /* IO 扩展功放引脚 */
 static bool s_pa_active_low = false;  /* 功放极性 */
@@ -189,22 +190,30 @@ int app_audio_codec_init(i2c_master_bus_handle_t i2c_bus)
         return -1;
     }
 
-    /* 5. 创建 ES8388 编解码芯片驱动（匹配 xiaozhi：master 模式） */
-    es8388_codec_cfg_t es8388_cfg = {
-        .ctrl_if = s_ctrl_if,
-        .gpio_if = s_gpio_if,
-        .codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH,
-        .master_mode = true,
-        .pa_pin = cfg->pa_pin >= 0 ? cfg->pa_pin : GPIO_NUM_NC,
-        .pa_reverted = false,
-        .hw_gain = {
-            .pa_voltage = 5.0,
-            .codec_dac_voltage = 3.3,
-        },
-    };
-    s_codec_if = es8388_codec_new(&es8388_cfg);
-    if (s_codec_if == NULL) {
-        ESP_LOGE(TAG, "Failed to create ES8388 codec");
+    /* 5. 根据板卡配置的编解码芯片类型创建驱动 */
+    switch (cfg->codec_type) {
+    case AUDIO_CODEC_ES8388: {
+        es8388_codec_cfg_t es8388_cfg = {
+            .ctrl_if = s_ctrl_if,
+            .gpio_if = s_gpio_if,
+            .codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH,
+            .master_mode = true,
+            .pa_pin = cfg->pa_pin >= 0 ? cfg->pa_pin : GPIO_NUM_NC,
+            .pa_reverted = false,
+            .hw_gain = {
+                .pa_voltage = 5.0,
+                .codec_dac_voltage = 3.3,
+            },
+        };
+        s_codec_if = es8388_codec_new(&es8388_cfg);
+        if (s_codec_if == NULL) {
+            ESP_LOGE(TAG, "Failed to create ES8388 codec");
+            return -1;
+        }
+        break;
+    }
+    default:
+        ESP_LOGE(TAG, "Unsupported codec type: %d", cfg->codec_type);
         return -1;
     }
 
@@ -237,14 +246,15 @@ int app_audio_codec_init(i2c_master_bus_handle_t i2c_bus)
     s_pa_pin = cfg->pa_pin;
     s_pa_expander_pin = cfg->pa_expander_pin;
     s_pa_active_low = cfg->pa_active_low;
+    s_codec_type = cfg->codec_type;
     s_initialized = true;
 
     /* 设置默认音量和增益 */
     app_audio_codec_set_volume(s_volume);
     app_audio_codec_set_gain(s_gain);
 
-    ESP_LOGI(TAG, "Audio codec ES8388 initialized (addr=0x%02X, rate=%d/%d)",
-             cfg->codec_addr, cfg->input_sample_rate, cfg->output_sample_rate);
+    ESP_LOGI(TAG, "Audio codec initialized (type=%d, addr=0x%02X, rate=%d/%d)",
+             cfg->codec_type, cfg->codec_addr, cfg->input_sample_rate, cfg->output_sample_rate);
 
     /* 使能功放（根据 board config 选择 GPIO 或 IO 扩展芯片） */
     if (s_pa_pin >= 0) {
@@ -290,12 +300,14 @@ int app_audio_codec_open_output(int sample_rate)
     /* 重新设置音量（确保 open 后生效） */
     esp_codec_dev_set_out_vol(s_output_dev, s_volume);
 
-    /* ES8388 模拟输出音量设置（匹配 xiaozhi，使用 ctrl_if 写寄存器） */
+    /* ES8388 专用：模拟输出音量寄存器设置 */
     /* 寄存器 46-49 默认 -45dB 近乎静音，需设为 0dB（值 30） */
-    uint8_t reg_val = 30;
-    uint8_t regs[] = { 46, 47, 48, 49 };  /* HP_LVOL, HP_RVOL, SPK_LVOL, SPK_RVOL */
-    for (int i = 0; i < 4; i++) {
-        s_ctrl_if->write_reg(s_ctrl_if, regs[i], 1, &reg_val, 1);
+    if (s_codec_type == AUDIO_CODEC_ES8388 && s_ctrl_if) {
+        uint8_t reg_val = 30;
+        uint8_t regs[] = { 46, 47, 48, 49 };  /* HP_LVOL, HP_RVOL, SPK_LVOL, SPK_RVOL */
+        for (int i = 0; i < 4; i++) {
+            s_ctrl_if->write_reg(s_ctrl_if, regs[i], 1, &reg_val, 1);
+        }
     }
 
     s_output_opened = true;

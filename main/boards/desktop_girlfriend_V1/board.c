@@ -45,11 +45,14 @@ static const board_t s_board = {
 
     /* 音频配置（暂无音频硬件） */
     .audio = {
+        .codec_type = AUDIO_CODEC_NONE,
         .i2s_port = -1,
         .pa_pin = -1,
         .pa_expander_pin = 0,
         .pa_active_low = false,
     },
+
+    .get_audio_i2c_bus = NULL,
 };
 
 const board_t *board_get_instance(void)

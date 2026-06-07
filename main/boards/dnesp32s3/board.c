@@ -11,11 +11,21 @@
 #include "driver/spi_common.h"
 #include "driver/i2s_std.h"
 #include "es8388_codec.h"
+#include "xl9555.h"
 
 /* XL9555 IO 扩展引脚定义（bitmask） */
 #define XL9555_SPK_EN_PIN      0x0004   /* 功放 MD8002A 使能引脚 P02，低电平有效 */
 #define XL9555_SLCD_RST_PIN    0x0400   /* SPI_LCD 复位引脚 P12 */
 #define XL9555_SLCD_PWR_PIN    0x0800   /* SPI_LCD 背光引脚 P13 */
+
+/**
+ * @brief 获取音频编解码芯片的 I2C 控制总线
+ * @note DNESP32S3 复用 XL9555 的 I2C 总线（ES8388 与 IO 扩展芯片共享同一 I2C）
+ */
+static void *dnesp32s3_get_audio_i2c_bus(void)
+{
+    return (void *)xl9555_get_i2c_bus();
+}
 
 static const board_t s_board = {
     .name = "DNESP32S3",
@@ -61,6 +71,7 @@ static const board_t s_board = {
 
     /* 音频配置（ES8388 编解码芯片 + MD8002A 功放） */
     .audio = {
+        .codec_type = AUDIO_CODEC_ES8388,
         .i2s_port = I2S_NUM_0,
         .pin_mclk = 3,
         .pin_bclk = 46,
@@ -74,6 +85,8 @@ static const board_t s_board = {
         .pa_expander_pin = 0x0004,          /* XL9555 P02，低电平有效 */
         .pa_active_low = true,
     },
+
+    .get_audio_i2c_bus = dnesp32s3_get_audio_i2c_bus,
 };
 
 const board_t *board_get_instance(void)

@@ -67,12 +67,24 @@ typedef struct {
 } font_cfg_t;
 
 /**
+ * @brief 音频编解码芯片类型
+ * @note 添加新芯片时在此枚举新增类型，并在 app_audio_codec.c 的 switch 中添加分支
+ */
+typedef enum {
+    AUDIO_CODEC_NONE  = 0,          /* 无编解码芯片（i2s_port=-1 时使用） */
+    AUDIO_CODEC_ES8388,             /* ES8388 全双工编解码芯片 */
+    /* 未来可扩展：AUDIO_CODEC_ES8311 等 */
+} audio_codec_type_t;
+
+/**
  * @brief 音频 I2S 编解码配置
  * @note 描述 I2S 引脚、采样率、编解码芯片参数，
  *       适用于 ES8388、ES8311 等 I2S 音频芯片，
  *       i2s_port 填 -1 表示该板卡无音频硬件
  */
 typedef struct {
+    audio_codec_type_t codec_type;   /* 编解码芯片类型 */
+
     /* I2S 数据引脚 */
     int i2s_port;                    /* I2S 端口号（I2S_NUM_0 / I2S_NUM_1，-1 无音频） */
     int pin_mclk;                    /* MCLK 引脚（-1 表示不使用） */
@@ -108,6 +120,13 @@ typedef struct {
     wifi_ap_cfg_t wifi_ap;           /* WiFi 配网参数 */
     font_cfg_t font;                 /* 字体配置 */
     audio_i2s_cfg_t audio;           /* 音频配置（i2s_port=-1 表示无音频） */
+
+    /**
+     * @brief 获取音频编解码芯片的 I2C 控制总线
+     * @return I2C 总线句柄（实际类型 i2c_master_bus_handle_t），无音频时返回 NULL
+     * @note 各板卡自行决定如何获取 I2C 总线（共享 XL9555 总线 / 独立创建）
+     */
+    void *(*get_audio_i2c_bus)(void);
 
     /* 未来扩展预留：
      * touch_cfg_t touch;            // 触摸屏配置

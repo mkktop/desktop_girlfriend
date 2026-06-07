@@ -11,7 +11,6 @@
 #include "app_audio.h"
 #include "app_audio_codec.h"
 #include "board.h"
-#include "xl9555.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -377,8 +376,11 @@ void app_audio_init(void)
         return;
     }
 
-    /* 获取共享 I2C 总线（XL9555 已初始化时复用） */
-    i2c_master_bus_handle_t i2c_bus = xl9555_get_i2c_bus();
+    /* 获取 I2C 控制总线（板卡自行决定来源：共享 XL9555 总线 / 独立创建） */
+    i2c_master_bus_handle_t i2c_bus = NULL;
+    if (board->get_audio_i2c_bus) {
+        i2c_bus = (i2c_master_bus_handle_t)board->get_audio_i2c_bus();
+    }
 
     /* 初始化编解码芯片（内部包含 PA 使能） */
     if (app_audio_codec_init(i2c_bus) != 0) {
