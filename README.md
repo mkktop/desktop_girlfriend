@@ -13,10 +13,10 @@
 
 ## 支持的板卡
 
-| 板卡 | Flash | RST/背光控制 | IO 扩展芯片 |
-|------|-------|-------------|------------|
-| desktop_girlfriend_V1 | 8MB | 直接 GPIO | 无 |
-| DNESP32S3（正点原子） | 16MB | XL9555 I2C 扩展 | XL9555 |
+| 板卡 | Flash | RST/背光控制 | IO 扩展芯片 | 音频 |
+|------|-------|-------------|------------|------|
+| desktop_girlfriend_V1 | 8MB | 直接 GPIO | 无 | 无 |
+| DNESP32S3（正点原子） | 16MB | XL9555 I2C 扩展 | XL9555 | ES8388（PA 经 XL9555 P02） |
 
 ### V1 引脚连接
 
@@ -54,7 +54,7 @@
 ├── main/
 │   ├── CMakeLists.txt          # 板卡条件编译 + 组件注册 + assets 打包
 │   ├── Kconfig.projbuild       # 板卡选择菜单
-│   ├── idf_component.yml       # 组件依赖（lvgl, esp_lvgl_port, xiaozhi-fonts, esp_mmap_assets）
+│   ├── idf_component.yml       # 组件依赖（lvgl, esp_lvgl_port, xiaozhi-fonts, esp_mmap_assets, esp_codec_dev, esp_audio_codec）
 │   ├── main.c                  # 应用入口（EventGroup 驱动主循环）
 │   ├── boards/                 # 板卡抽象层
 │   │   ├── board.h             # 板卡配置结构体（嵌套分组）+ 单例接口
@@ -79,13 +79,19 @@
 │   │   │       ├── ui_manager.c/h     # 页面管理器（首页 ↔ 配网引导页切换）
 │   │   │       ├── ui_home.c/h        # 首页 UI（GIF 动态表情）
 │   │   │       └── ui_wifi_config.c/h # WiFi 配网引导页（AP名称/密码/URL）
+│   │   ├── audio/
+│   │   │   ├── app_audio.c/h        # 音频服务层（提示音播放、音量控制、播放任务）
+│   │   │   ├── app_audio_codec.c/h  # 编解码芯片抽象层（esp_codec_dev 封装）
+│   │   │   └── ogg_demuxer.c/h      # OGG 容器解复用器（纯 C 状态机）
 │   │   ├── wifi/
 │   │   │   └── app_wifi.c/h    # WiFi 配网（AP+STA + HTTP 服务器 + 自动配网 + 重连策略）
 │   │   └── sntp/
 │   │       └── app_sntp.c/h    # SNTP 时间同步
 │   └── resources/
-│       └── html/
-│           └── index.html      # 配网网页（embed 进固件）
+│       ├── html/
+│       │   └── index.html      # 配网网页（embed 进固件）
+│       └── sounds/
+│           └── *.ogg           # 提示音（embed 进固件）
 └── managed_components/         # IDF 自动管理的组件
     ├── lvgl__lvgl/             # LVGL v9.5.0
     ├── espressif__esp_lvgl_port/ # esp_lvgl_port v2.7.x
@@ -124,7 +130,9 @@
    - `lcd_cfg_t lcd` — LCD 引脚、SPI 参数、显示参数、IO 扩展芯片配置
    - `wifi_ap_cfg_t wifi_ap` — WiFi 配网热点参数
    - `font_cfg_t font` — 字体配置（内置 + CBin 运行时）
-   - 未来可扩展 `audio_cfg_t`、`touch_cfg_t`、`button_cfg_t` 等
+   - `audio_i2s_cfg_t audio` — 音频配置（I2S 引脚、编解码芯片类型、PA 功放；`i2s_port = -1` 表示无音频硬件）
+   - `get_audio_i2c_bus()` — 函数指针，由板卡提供编解码芯片的 I2C 控制总线（可复用 XL9555 总线）
+   - 未来可扩展 `touch_cfg_t`、`button_cfg_t` 等
 2. `main/boards/<板卡名>/board.c` — 各板卡填充具体参数
 3. `main/boards/<板卡名>/config.json` — CI 构建变体定义（target、sdkconfig 追加项）
 4. `main/boards/common/` — 板卡共享驱动（XL9555 IO 扩展、背光、按钮等）
@@ -166,6 +174,24 @@
 - **主循环**以优先级 10 运行，`xEventGroupWaitBits` 阻塞等待
 - **观察者模式**：模块通过 `app_event_register_handler()` 注册回调，按事件位掩码过滤
 - **Schedule 机制**：`app_event_schedule()` 提交延迟回调到主线程执行，避免跨任务并发
+
+## 音频系统
+
+三层结构，板卡无音频硬件时（`audio.i2s_port = -1`）初始化自动跳过，后续 API 均为空操作：
+
+| 层级 | 文件 | 职责 |
+|------|------|------|
+| 服务层 | `app_audio.c` | 高级 API（提示音播放、音量控制）+ 独立 FreeRTOS 播放任务 |
+| 编解码层 | `app_audio_codec.c` | esp_codec_dev 封装，按 `audio_codec_type_t` 分支适配 ES8388 等芯片 |
+| 解码层 | `ogg_demuxer.c` + esp_opus_dec | OGG 容器解复用（纯 C 状态机）+ Opus 解码为 PCM |
+
+- **播放任务**：独立任务（24KB 栈，优先级 2，绑定 Core 0，与 Core 1 的 LVGL 分离）
+- **提示音**：`resources/sounds/*.ogg` 通过 `EMBED_FILES` 编译进固件
+  - `success.ogg` — 设备就绪（启动时播放）
+  - `wifi_config.ogg` — 进入配网模式
+  - `wifi_connected.ogg` — WiFi 获取 IP
+- **事件触发**：通过事件系统观察者播放提示音，不在 WiFi 回调中直接播放
+- **板卡适配**：芯片类型、I2S 引脚、PA 功放和 I2C 总线全部来自 `board_t`，添加新板卡音频模块零修改
 
 ## WiFi 配网
 
@@ -217,6 +243,8 @@ GitHub Actions 两阶段流水线（`.github/workflows/build.yml`）：
 | esp_lvgl_port | ~2.7.2（managed component） |
 | xiaozhi-fonts | ~1.6.0（阿里巴巴普惠体 + CBin 加载器） |
 | esp_mmap_assets | ~1.4.0（资源分区打包 + mmap 零拷贝） |
+| esp_codec_dev | ~1.5.6（managed component，编解码芯片抽象） |
+| esp_audio_codec | ~2.4.1（managed component，esp_opus_dec Opus 解码） |
 | LCD 驱动 | ESP-IDF 内置 `esp_lcd_new_panel_st7789()` |
 | FreeRTOS | ESP-IDF 内置 |
 
@@ -262,6 +290,7 @@ rm -rf build && cmd.exe //C "build.bat build"   # 清理后编译
 - [x] 两层字体策略（内置 fallback + CBin 运行时加载）
 - [x] 资源分区管理（esp_mmap_assets mmap 零拷贝）
 - [x] 动态 AP SSID（前缀 + MAC 地址）
+- [x] 音频系统（ES8388 + OGG/Opus 解码 + 内置提示音）
 - [x] CI/CD 自动编译 + GitHub Release 发布
 - [ ] OTA 固件升级（16MB 板卡）
 - [ ] 触摸输入支持

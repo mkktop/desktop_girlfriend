@@ -39,6 +39,7 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 - **RTOS**: FreeRTOS
 - **Fonts**: xiaozhi-fonts ~1.6.0 (Alibaba PuHui + CBin loader + FontAwesome icons)
 - **Assets**: esp_mmap_assets ~1.4.0 (partition packaging + mmap zero-copy)
+- **Audio**: esp_codec_dev ~1.5.6 (codec chip abstraction) + esp_audio_codec ~2.4.1 (esp_opus_dec Opus decoder)
 
 ### Board Abstraction
 
@@ -52,7 +53,7 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 | `main/boards/common/` | 板卡共享驱动（XL9555 IO 扩展、背光、按钮等） |
 | `main/Kconfig.projbuild` | 板卡选择菜单（`menuconfig` 中可见） |
 
-`board_t` 通过嵌套结构体分组外设配置：`lcd_cfg_t lcd`、`wifi_ap_cfg_t wifi_ap`、`font_cfg_t font`，扩展时只需添加新的 `xxx_cfg_t`。
+`board_t` 通过嵌套结构体分组外设配置：`lcd_cfg_t lcd`、`wifi_ap_cfg_t wifi_ap`、`font_cfg_t font`、`audio_i2s_cfg_t audio`，扩展时只需添加新的 `xxx_cfg_t`。`audio.i2s_port = -1` 表示板卡无音频硬件（此时 `get_audio_i2c_bus` 可为 NULL）；`get_audio_i2c_bus()` 函数指针由各板卡实现，提供编解码芯片的 I2C 控制总线（DNESP32S3 复用 XL9555 的 I2C 总线）。
 
 `lcd_cfg_t` 支持两种 RST/背光控制模式：
 - **直接 GPIO**（`use_io_expander = false`）：引脚直接连接 MCU
@@ -77,15 +78,19 @@ This is an ESP32-S3 embedded GUI project using LVGL for a "desktop girlfriend" d
 | `main/modules/display/ui/ui_manager.c` | Page manager - three-layer container architecture, page switching, event dispatch |
 | `main/modules/display/ui/ui_home.c` | Home page UI (GIF animated emoji) |
 | `main/modules/display/ui/ui_wifi_config.c` | WiFi config guidance page (AP SSID/password/URL) |
+| `main/modules/audio/app_audio.c` | Audio service layer - tone + OGG/Opus prompt sound playback, volume control, playback task |
+| `main/modules/audio/app_audio_codec.c` | Codec chip abstraction (esp_codec_dev), switches on board's `audio_codec_type_t` (ES8388, ...) |
+| `main/modules/audio/ogg_demuxer.c` | Pure C OGG container demuxer feeding esp_opus_dec |
 | `main/modules/sntp/app_sntp.c` | SNTP time sync (ntp.aliyun.com, auto-start on GOT_IP) |
 | `main/modules/wifi/app_wifi.c` | WiFi provisioning (AP+STA mode, auto-trigger, reconnection with exponential backoff) |
 | `main/resources/html/index.html` | WiFi provisioning web page |
+| `main/resources/sounds/*.ogg` | Prompt sounds (EMBED_FILES into firmware) |
 
 ### Init Sequence (main.c)
 
-Order matters: `NVS → event system → SNTP → WiFi → display hardware → font manager → UI → main loop`
+Order matters: `NVS → event system → SNTP → WiFi → display hardware → font manager → UI → audio → main loop`
 
-Font manager must init after display (LVGL core needed for `cbin_font_create`) and before UI (UI needs font pointers).
+Font manager must init after display (LVGL core needed for `cbin_font_create`) and before UI (UI needs font pointers). Audio inits after display because the codec I2C bus comes from the board (`get_audio_i2c_bus()` returns the XL9555 bus on DNESP32S3, created during display init); it plays the startup sound and no-ops on boards without audio hardware.
 
 ### UI Page System (Three-Layer Container)
 
@@ -116,6 +121,17 @@ lv_screen_active()
 - All UI code uses `app_font_get_text()` / `app_font_get_icon()` from `app_font.h` — never reference fonts directly
 - Assets partition packaged by `spiffs_create_partition_assets()` in `main/CMakeLists.txt`, flashed automatically with `idf.py flash`
 - Auto-generated header `main/mmap_generate_assets.h` provides file indices and checksum — include it when adding asset access
+
+### Audio System
+
+三层结构：`app_audio.c`（服务层）→ `app_audio_codec.c`（esp_codec_dev 芯片抽象）→ `ogg_demuxer.c` + esp_opus_dec（OGG 解复用 + Opus 解码为 PCM）。
+
+- 播放任务：独立 FreeRTOS 任务（24KB 栈，优先级 2，绑定 Core 0，与 Core 1 的 LVGL 分离）
+- 提示音 `resources/sounds/*.ogg` 通过 `EMBED_FILES` 嵌入固件，以 `_binary_<name>_ogg_start/end` 符号访问
+- 事件观察者触发播放（启动就绪 / 进入配网 / WiFi 获取 IP），不在 WiFi 回调中直接播放
+- 无音频板卡（`i2s_port = -1`）时 `app_audio_init()` 跳过，后续 API 均为空操作
+- 添加新板卡：board.c 填充 `audio_i2s_cfg_t` + `get_audio_i2c_bus()` 即可，音频模块零修改
+- 添加新编解码芯片：在 `audio_codec_type_t` 枚举加类型，并在 `app_audio_codec.c` 的 switch 中加分支
 
 ### Event System
 
