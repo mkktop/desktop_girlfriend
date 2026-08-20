@@ -21,6 +21,7 @@ download/
 
 # Logs
 *.log
+build_output.txt
 
 # CMake
 CMakeCache.txt
